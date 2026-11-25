@@ -1,0 +1,103 @@
+{
+  "id": "warn-cluster-admin-default-sa",
+  "type": "warning",
+  "provider": "kubernetes",
+  "fixedBy": "k8s-rbac",
+  "title": "cluster-admin bound to a default service account",
+  "summary": "A tutorial-style shortcut binds cluster-admin to default/default. Every pod in the default namespace that doesn't set a service account automatically runs with full control of the cluster.",
+  "notes": [
+    "Pods use the namespace's 'default' service account unless they name another one, and its token is mounted automatically. A single compromised container then owns the cluster.",
+    "Fix: a dedicated service account per workload, a namespaced RoleBinding to the narrowest role, and automountServiceAccountToken: false where the API isn't needed.",
+    "Audit with: kubectl get clusterrolebindings -o wide | grep cluster-admin."
+  ],
+  "docs": [
+    {
+      "title": "RBAC good practices",
+      "url": "https://kubernetes.io/docs/concepts/security/rbac-good-practices/"
+    },
+    {
+      "title": "Opt out of API credential automounting",
+      "url": "https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#opt-out-of-api-credential-automounting"
+    },
+    {
+      "title": "Using RBAC authorization",
+      "url": "https://kubernetes.io/docs/reference/access-authn-authz/rbac/"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "pod-a",
+        "kind": "workload",
+        "label": "Pod: web (no serviceAccountName)"
+      },
+      {
+        "id": "pod-b",
+        "kind": "workload",
+        "label": "Pod: debug-shell (no serviceAccountName)"
+      },
+      {
+        "id": "sa",
+        "kind": "k8sServiceAccount",
+        "label": "default/default",
+        "warning": "Used implicitly by every pod in the namespace."
+      },
+      {
+        "id": "crb",
+        "kind": "roleBinding",
+        "label": "ClusterRoleBinding default-admin",
+        "warning": "Cluster-wide binding to an implicit identity."
+      },
+      {
+        "id": "admin",
+        "kind": "roleDefinition",
+        "label": "ClusterRole cluster-admin"
+      },
+      {
+        "id": "cluster",
+        "kind": "scope",
+        "label": "cluster",
+        "properties": {
+          "type": "cluster"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "pod-a",
+        "target": "sa",
+        "label": "implicit"
+      },
+      {
+        "id": "e2",
+        "kind": "runsAs",
+        "source": "pod-b",
+        "target": "sa",
+        "label": "implicit"
+      },
+      {
+        "id": "e3",
+        "kind": "subjectOf",
+        "source": "sa",
+        "target": "crb"
+      },
+      {
+        "id": "e4",
+        "kind": "grants",
+        "source": "crb",
+        "target": "admin",
+        "label": "roleRef",
+        "warning": "Full control: secrets, RBAC, every namespace."
+      },
+      {
+        "id": "e5",
+        "kind": "scopedTo",
+        "source": "crb",
+        "target": "cluster",
+        "label": "all namespaces"
+      }
+    ]
+  }
+}

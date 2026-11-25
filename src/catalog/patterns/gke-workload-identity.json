@@ -1,0 +1,101 @@
+{
+  "id": "gke-workload-identity",
+  "provider": "gcp",
+  "title": "GKE: Workload Identity Federation",
+  "summary": "Each Kubernetes service account is a principal in the project's workload pool. It can impersonate a Google service account, or be granted IAM roles directly.",
+  "notes": [
+    "The pool is fixed per project: PROJECT_ID.svc.id.goog. The KSA principal is identified by namespace and name.",
+    "Impersonation (shown) needs two links: roles/iam.workloadIdentityUser on the Google service account for the KSA principal, and the iam.gke.io/gcp-service-account annotation on the KSA.",
+    "Granting IAM roles directly to principal://…/subject/ns/<ns>/sa/<ksa> removes the Google service account entirely, where the target service supports it."
+  ],
+  "docs": [
+    {
+      "title": "About Workload Identity Federation for GKE",
+      "url": "https://cloud.google.com/kubernetes-engine/docs/concepts/workload-identity"
+    },
+    {
+      "title": "Authenticate to Google Cloud APIs from GKE workloads",
+      "url": "https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity"
+    },
+    {
+      "title": "IAM principal identifiers",
+      "url": "https://cloud.google.com/iam/docs/principal-identifiers"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "pool",
+        "kind": "identityProvider",
+        "label": "app-prod.svc.id.goog",
+        "description": "Project workload identity pool; GKE metadata server issues tokens for it."
+      },
+      {
+        "id": "pod",
+        "kind": "workload",
+        "label": "Pod: orders-api"
+      },
+      {
+        "id": "ksa",
+        "kind": "k8sServiceAccount",
+        "label": "orders/orders-sa",
+        "properties": {
+          "annotation": "iam.gke.io/gcp-service-account=orders-api@app-prod.iam.gserviceaccount.com"
+        }
+      },
+      {
+        "id": "gsa",
+        "kind": "serviceAccount",
+        "label": "orders-api@app-prod.iam.gserviceaccount.com"
+      },
+      {
+        "id": "secret",
+        "kind": "scope",
+        "label": "secret: orders-db",
+        "properties": {
+          "type": "Secret Manager secret"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "pod",
+        "target": "ksa",
+        "label": "serviceAccountName"
+      },
+      {
+        "id": "e2",
+        "kind": "federatesWith",
+        "source": "pool",
+        "target": "ksa",
+        "label": "identifies as",
+        "properties": {
+          "principal": "serviceAccount:app-prod.svc.id.goog[orders/orders-sa]"
+        }
+      },
+      {
+        "id": "e3",
+        "kind": "canAssume",
+        "source": "ksa",
+        "target": "gsa",
+        "label": "workloadIdentityUser",
+        "properties": {
+          "role": "roles/iam.workloadIdentityUser",
+          "member": "serviceAccount:app-prod.svc.id.goog[orders/orders-sa]"
+        }
+      },
+      {
+        "id": "e4",
+        "kind": "hasRoleAssignment",
+        "source": "gsa",
+        "target": "secret",
+        "label": "Secret Accessor",
+        "properties": {
+          "role": "roles/secretmanager.secretAccessor"
+        }
+      }
+    ]
+  }
+}

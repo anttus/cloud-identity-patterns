@@ -1,0 +1,114 @@
+{
+  "id": "aks-cluster-access",
+  "provider": "azure",
+  "title": "AKS: human access with Entra ID and Azure RBAC",
+  "summary": "Users sign in to the API server with Entra ID tokens (via kubelogin). With Azure RBAC for Kubernetes enabled, Azure role assignments, not RoleBindings, decide what they can do, down to namespace scope.",
+  "notes": [
+    "Two separate permissions: 'Azure Kubernetes Service Cluster User Role' only lets you download a kubeconfig. What you can do inside the cluster comes from the AKS RBAC roles (Reader / Writer / Admin / Cluster Admin).",
+    "Assign the AKS RBAC roles to groups at namespace scope (…/managedClusters/<name>/namespaces/<ns>) rather than to individual users at cluster scope.",
+    "Disable local accounts. The --admin kubeconfig is a client certificate that bypasses Entra ID, Conditional Access and Azure RBAC entirely.",
+    "Without Azure RBAC for Kubernetes, Entra groups are used as subjects in ordinary Kubernetes RoleBindings instead. Authentication is the same, authorization moves into the cluster."
+  ],
+  "docs": [
+    {
+      "title": "AKS-managed Microsoft Entra integration",
+      "url": "https://learn.microsoft.com/azure/aks/entra-id-control-plane-authentication"
+    },
+    {
+      "title": "Azure RBAC for Kubernetes authorization",
+      "url": "https://learn.microsoft.com/azure/aks/entra-id-authorization"
+    },
+    {
+      "title": "Disable local accounts",
+      "url": "https://learn.microsoft.com/azure/aks/local-accounts"
+    },
+    {
+      "title": "kubelogin (Azure credential plugin for kubectl)",
+      "url": "https://azure.github.io/kubelogin/"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "user",
+        "kind": "user",
+        "label": "dev@contoso.com"
+      },
+      {
+        "id": "group",
+        "kind": "group",
+        "label": "grp-aks-orders-devs"
+      },
+      {
+        "id": "entra",
+        "kind": "externalIssuer",
+        "label": "Microsoft Entra ID",
+        "description": "kubelogin obtains a token for the AKS server application."
+      },
+      {
+        "id": "cluster",
+        "kind": "scope",
+        "label": "aks-prod (cluster)",
+        "properties": {
+          "type": "Microsoft.ContainerService/managedClusters"
+        }
+      },
+      {
+        "id": "ns",
+        "kind": "scope",
+        "label": "namespace: orders",
+        "properties": {
+          "type": "namespace (Azure RBAC scope)"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "memberOf",
+        "source": "user",
+        "target": "group"
+      },
+      {
+        "id": "e2",
+        "kind": "uses",
+        "source": "user",
+        "target": "entra",
+        "label": "kubelogin sign-in"
+      },
+      {
+        "id": "e3",
+        "kind": "federatesWith",
+        "source": "entra",
+        "target": "cluster",
+        "label": "API server trusts"
+      },
+      {
+        "id": "e4",
+        "kind": "hasRoleAssignment",
+        "source": "user",
+        "target": "cluster",
+        "label": "Cluster User Role (get kubeconfig)",
+        "properties": {
+          "role": "Azure Kubernetes Service Cluster User Role"
+        }
+      },
+      {
+        "id": "e5",
+        "kind": "hasRoleAssignment",
+        "source": "group",
+        "target": "ns",
+        "label": "AKS RBAC Writer",
+        "properties": {
+          "role": "Azure Kubernetes Service RBAC Writer"
+        }
+      },
+      {
+        "id": "e6",
+        "kind": "childOf",
+        "source": "ns",
+        "target": "cluster"
+      }
+    ]
+  }
+}

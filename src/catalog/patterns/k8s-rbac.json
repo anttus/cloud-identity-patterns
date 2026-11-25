@@ -1,0 +1,154 @@
+{
+  "id": "k8s-rbac",
+  "provider": "kubernetes",
+  "title": "Kubernetes RBAC: Role, ClusterRole and bindings",
+  "summary": "Bindings connect subjects to role definitions. The binding's kind sets where the permissions apply, not the role's kind.",
+  "notes": [
+    "A RoleBinding that references a ClusterRole grants that ClusterRole's permissions only inside the binding's namespace. This is how built-in roles like 'edit' are reused per namespace.",
+    "A ClusterRoleBinding grants cluster-wide, across all namespaces. Keep these rare and review them first.",
+    "RBAC is additive: there are no deny rules. Least privilege means granting less, not subtracting.",
+    "Set automountServiceAccountToken: false on pods that don't call the Kubernetes API."
+  ],
+  "docs": [
+    {
+      "title": "Using RBAC authorization",
+      "url": "https://kubernetes.io/docs/reference/access-authn-authz/rbac/"
+    },
+    {
+      "title": "RBAC good practices",
+      "url": "https://kubernetes.io/docs/concepts/security/rbac-good-practices/"
+    },
+    {
+      "title": "Service accounts",
+      "url": "https://kubernetes.io/docs/concepts/security/service-accounts/"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "pod",
+        "kind": "workload",
+        "label": "Pod: release-bot"
+      },
+      {
+        "id": "sa",
+        "kind": "k8sServiceAccount",
+        "label": "apps/release-bot"
+      },
+      {
+        "id": "rb",
+        "kind": "roleBinding",
+        "label": "RoleBinding apps/release-bot-edit"
+      },
+      {
+        "id": "edit",
+        "kind": "roleDefinition",
+        "label": "ClusterRole edit",
+        "description": "Built-in: read/write most namespaced objects, no RBAC changes."
+      },
+      {
+        "id": "ns",
+        "kind": "scope",
+        "label": "namespace: apps",
+        "properties": {
+          "type": "namespace"
+        }
+      },
+      {
+        "id": "prom-pod",
+        "kind": "workload",
+        "label": "Pod: prometheus"
+      },
+      {
+        "id": "prom-sa",
+        "kind": "k8sServiceAccount",
+        "label": "monitoring/prometheus"
+      },
+      {
+        "id": "crb",
+        "kind": "roleBinding",
+        "label": "ClusterRoleBinding prometheus"
+      },
+      {
+        "id": "read",
+        "kind": "roleDefinition",
+        "label": "ClusterRole metrics-reader",
+        "properties": {
+          "rules": "get/list/watch pods, services, endpoints, nodes"
+        }
+      },
+      {
+        "id": "cluster",
+        "kind": "scope",
+        "label": "cluster",
+        "properties": {
+          "type": "cluster"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "pod",
+        "target": "sa",
+        "label": "serviceAccountName"
+      },
+      {
+        "id": "e2",
+        "kind": "subjectOf",
+        "source": "sa",
+        "target": "rb",
+        "label": "subject"
+      },
+      {
+        "id": "e3",
+        "kind": "grants",
+        "source": "rb",
+        "target": "edit",
+        "label": "roleRef"
+      },
+      {
+        "id": "e4",
+        "kind": "scopedTo",
+        "source": "rb",
+        "target": "ns",
+        "label": "only here"
+      },
+      {
+        "id": "e5",
+        "kind": "runsAs",
+        "source": "prom-pod",
+        "target": "prom-sa",
+        "label": "serviceAccountName"
+      },
+      {
+        "id": "e6",
+        "kind": "subjectOf",
+        "source": "prom-sa",
+        "target": "crb",
+        "label": "subject"
+      },
+      {
+        "id": "e7",
+        "kind": "grants",
+        "source": "crb",
+        "target": "read",
+        "label": "roleRef"
+      },
+      {
+        "id": "e8",
+        "kind": "scopedTo",
+        "source": "crb",
+        "target": "cluster",
+        "label": "all namespaces"
+      },
+      {
+        "id": "e9",
+        "kind": "childOf",
+        "source": "ns",
+        "target": "cluster"
+      }
+    ]
+  }
+}

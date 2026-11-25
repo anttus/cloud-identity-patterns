@@ -1,0 +1,101 @@
+{
+  "id": "k8s-projected-sa-token",
+  "provider": "kubernetes",
+  "title": "Projected service account token for a non-Kubernetes API",
+  "summary": "The kubelet mounts a short-lived, audience-bound service account token into the pod. Another service verifies it against the cluster's OIDC issuer, so no shared secret is needed.",
+  "notes": [
+    "Projected tokens expire (e.g. after 1 hour) and the kubelet refreshes them before they do. The legacy Secret-based tokens never expired and are no longer created automatically.",
+    "Set a specific audience (e.g. 'payments-api'). The receiving service rejects tokens meant for anyone else, so a stolen token can't be replayed against the Kubernetes API or a different service.",
+    "The receiver validates the signature with the issuer's public keys (/.well-known/openid-configuration and JWKS), or calls the TokenReview API if it can reach the cluster.",
+    "This is the building block under AKS Workload Identity, EKS IRSA and GKE Workload Identity Federation: the same token, trusted by a cloud instead of your own service."
+  ],
+  "docs": [
+    {
+      "title": "Service account token volume projection",
+      "url": "https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#serviceaccount-token-volume-projection"
+    },
+    {
+      "title": "Service account issuer discovery",
+      "url": "https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#service-account-issuer-discovery"
+    },
+    {
+      "title": "Managing service accounts",
+      "url": "https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/"
+    },
+    {
+      "title": "Service accounts",
+      "url": "https://kubernetes.io/docs/concepts/security/service-accounts/"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "pod",
+        "kind": "workload",
+        "label": "Pod: checkout"
+      },
+      {
+        "id": "sa",
+        "kind": "k8sServiceAccount",
+        "label": "shop/checkout"
+      },
+      {
+        "id": "token",
+        "kind": "credential",
+        "label": "Projected token (aud: payments-api, 1h)",
+        "properties": {
+          "path": "/var/run/secrets/tokens/payments",
+          "rotation": "kubelet, at 80% of lifetime"
+        }
+      },
+      {
+        "id": "issuer",
+        "kind": "externalIssuer",
+        "label": "Cluster service account issuer",
+        "description": "Publishes OIDC discovery and JWKS so outside services can verify tokens."
+      },
+      {
+        "id": "api",
+        "kind": "workload",
+        "label": "payments-api (outside the cluster)"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "pod",
+        "target": "sa",
+        "label": "serviceAccountName"
+      },
+      {
+        "id": "e2",
+        "kind": "attachedTo",
+        "source": "token",
+        "target": "pod",
+        "label": "projected volume"
+      },
+      {
+        "id": "e3",
+        "kind": "childOf",
+        "source": "token",
+        "target": "sa",
+        "label": "issued for"
+      },
+      {
+        "id": "e4",
+        "kind": "federatesWith",
+        "source": "issuer",
+        "target": "api",
+        "label": "verifies signature + aud"
+      },
+      {
+        "id": "e5",
+        "kind": "uses",
+        "source": "pod",
+        "target": "api",
+        "label": "Bearer token"
+      }
+    ]
+  }
+}

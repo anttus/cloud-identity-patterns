@@ -1,0 +1,117 @@
+{
+  "id": "eks-cluster-access",
+  "provider": "aws",
+  "title": "EKS: human access with IAM and access entries",
+  "summary": "Users authenticate with their IAM identity, usually an IAM Identity Center permission-set role. An EKS access entry maps that role into the cluster and attaches an access policy, at cluster or namespace scope.",
+  "notes": [
+    "Authentication: aws eks get-token creates a pre-signed STS GetCallerIdentity request, and EKS verifies who you are from it. No Kubernetes passwords or certificates.",
+    "Access entries (EKS API) replace the old aws-auth ConfigMap. They are managed through IAM-controlled API calls and audited in CloudTrail, and a bad edit can't lock everyone out.",
+    "Map the permission-set role, not individual users. Identity Center role ARNs contain a random suffix, so manage the entries with IaC.",
+    "The cluster creator gets cluster-admin by default. Turn that off (bootstrapClusterCreatorAdminPermissions=false) and grant admin deliberately."
+  ],
+  "docs": [
+    {
+      "title": "Grant IAM users access with EKS access entries",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html"
+    },
+    {
+      "title": "Associate access policies with access entries",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/access-policies.html"
+    },
+    {
+      "title": "Migrate from the aws-auth ConfigMap to access entries",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/migrating-access-entries.html"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "user",
+        "kind": "user",
+        "label": "dev@contoso.com (Identity Center)"
+      },
+      {
+        "id": "role",
+        "kind": "iamRole",
+        "label": "AWSReservedSSO_OrdersDev_…",
+        "description": "Role provisioned by an IAM Identity Center permission set."
+      },
+      {
+        "id": "entry",
+        "kind": "roleBinding",
+        "label": "Access entry",
+        "properties": {
+          "principalArn": "arn:aws:iam::222222222222:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_OrdersDev_…"
+        }
+      },
+      {
+        "id": "policy",
+        "kind": "roleDefinition",
+        "label": "AmazonEKSEditPolicy",
+        "description": "EKS access policy; maps to Kubernetes 'edit' permissions."
+      },
+      {
+        "id": "cluster",
+        "kind": "scope",
+        "label": "eks-prod (cluster)",
+        "properties": {
+          "type": "EKS cluster"
+        }
+      },
+      {
+        "id": "ns",
+        "kind": "scope",
+        "label": "namespace: orders",
+        "properties": {
+          "type": "namespace"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "canAssume",
+        "source": "user",
+        "target": "role",
+        "label": "permission set"
+      },
+      {
+        "id": "e2",
+        "kind": "subjectOf",
+        "source": "role",
+        "target": "entry",
+        "label": "principalArn"
+      },
+      {
+        "id": "e3",
+        "kind": "grants",
+        "source": "entry",
+        "target": "policy",
+        "label": "associated policy"
+      },
+      {
+        "id": "e4",
+        "kind": "scopedTo",
+        "source": "entry",
+        "target": "ns",
+        "label": "accessScope: namespace"
+      },
+      {
+        "id": "e5",
+        "kind": "childOf",
+        "source": "ns",
+        "target": "cluster"
+      },
+      {
+        "id": "e6",
+        "kind": "hasRoleAssignment",
+        "source": "role",
+        "target": "cluster",
+        "label": "eks:DescribeCluster",
+        "properties": {
+          "role": "permission-set policy (to build a kubeconfig)"
+        }
+      }
+    ]
+  }
+}

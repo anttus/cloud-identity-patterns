@@ -1,0 +1,106 @@
+{
+  "id": "github-oidc-aws",
+  "provider": "aws",
+  "title": "GitHub Actions → AWS (OIDC role assumption)",
+  "summary": "The job exchanges its GitHub OIDC token for temporary AWS credentials with sts:AssumeRoleWithWebIdentity. The role's trust policy decides which repos and environments are allowed.",
+  "notes": [
+    "The IAM OIDC identity provider is registered once per account for https://token.actions.githubusercontent.com.",
+    "The trust policy must check BOTH the audience (sts.amazonaws.com) and the subject. Use StringEquals on the sub claim to pin a repo and environment; a trust policy without a sub condition accepts any GitHub repository in the world.",
+    "Credentials last up to the role's maximum session duration (default 1h). There is nothing to rotate."
+  ],
+  "docs": [
+    {
+      "title": "GitHub: configuring OIDC in AWS",
+      "url": "https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws"
+    },
+    {
+      "title": "AWS: create an OIDC identity provider",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html"
+    },
+    {
+      "title": "GitHub: about security hardening with OpenID Connect",
+      "url": "https://docs.github.com/en/actions/concepts/security/openid-connect"
+    },
+    {
+      "title": "aws-actions/configure-aws-credentials",
+      "url": "https://github.com/aws-actions/configure-aws-credentials"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "gh-issuer",
+        "kind": "externalIssuer",
+        "label": "GitHub OIDC issuer",
+        "properties": {
+          "issuer": "https://token.actions.githubusercontent.com"
+        }
+      },
+      {
+        "id": "workflow",
+        "kind": "workload",
+        "label": "deploy.yml (environment: prod)",
+        "description": "GitHub Actions job with permissions: id-token: write"
+      },
+      {
+        "id": "idp",
+        "kind": "identityProvider",
+        "label": "IAM OIDC provider",
+        "properties": {
+          "arn": "arn:aws:iam::222222222222:oidc-provider/token.actions.githubusercontent.com"
+        }
+      },
+      {
+        "id": "role",
+        "kind": "iamRole",
+        "label": "gha-deploy-prod"
+      },
+      {
+        "id": "account",
+        "kind": "scope",
+        "label": "prod account (222222222222)",
+        "properties": {
+          "type": "AWS account"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "workflow",
+        "target": "role",
+        "label": "configure-aws-credentials (role-to-assume)"
+      },
+      {
+        "id": "e2",
+        "kind": "federatesWith",
+        "source": "gh-issuer",
+        "target": "idp",
+        "label": "registered as"
+      },
+      {
+        "id": "e3",
+        "kind": "federatesWith",
+        "source": "idp",
+        "target": "role",
+        "label": "trust policy",
+        "properties": {
+          "action": "sts:AssumeRoleWithWebIdentity",
+          "aud (StringEquals)": "sts.amazonaws.com",
+          "sub (StringEquals)": "repo:contoso/app:environment:prod"
+        }
+      },
+      {
+        "id": "e4",
+        "kind": "hasRoleAssignment",
+        "source": "role",
+        "target": "account",
+        "label": "DeployPolicy",
+        "properties": {
+          "role": "DeployPolicy (customer managed)"
+        }
+      }
+    ]
+  }
+}

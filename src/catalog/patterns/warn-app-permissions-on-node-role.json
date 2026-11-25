@@ -1,0 +1,113 @@
+{
+  "id": "warn-app-permissions-on-node-role",
+  "type": "warning",
+  "provider": "aws",
+  "fixedBy": "eks-pod-identity",
+  "title": "App permissions on the node role",
+  "summary": "To 'just make it work', the orders app's S3 and Secrets Manager permissions were added to the node IAM role. Every pod on those nodes, in every namespace, now has them, including a compromised one.",
+  "notes": [
+    "A node role is shared by everything scheduled on the node. Its permissions are effectively granted to the whole node pool.",
+    "Fix: one role per service account (EKS Pod Identity or IRSA), and keep the node role to joining the cluster and pulling images.",
+    "Same anti-pattern elsewhere: granting app roles to the AKS kubelet identity, or to the GKE node service account."
+  ],
+  "docs": [
+    {
+      "title": "EKS best practices: identity and access management",
+      "url": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
+    },
+    {
+      "title": "EKS Pod Identity",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html"
+    },
+    {
+      "title": "IAM roles for service accounts",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "orders",
+        "kind": "workload",
+        "label": "Pod: orders-api"
+      },
+      {
+        "id": "other",
+        "kind": "workload",
+        "label": "Pod: any other app",
+        "warning": "Gets the orders app's permissions too."
+      },
+      {
+        "id": "ng",
+        "kind": "workload",
+        "label": "Managed node group"
+      },
+      {
+        "id": "role",
+        "kind": "iamRole",
+        "label": "eks-prod-node-role",
+        "warning": "Node role carrying application permissions."
+      },
+      {
+        "id": "bucket",
+        "kind": "scope",
+        "label": "s3://orders-data",
+        "properties": {
+          "type": "S3 bucket"
+        }
+      },
+      {
+        "id": "secret",
+        "kind": "scope",
+        "label": "secret: orders/db",
+        "properties": {
+          "type": "Secrets Manager secret"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "attachedTo",
+        "source": "role",
+        "target": "ng",
+        "label": "instance profile"
+      },
+      {
+        "id": "e2",
+        "kind": "uses",
+        "source": "orders",
+        "target": "role",
+        "label": "via IMDS"
+      },
+      {
+        "id": "e3",
+        "kind": "uses",
+        "source": "other",
+        "target": "role",
+        "label": "via IMDS",
+        "warning": "Nothing ties these permissions to the orders app."
+      },
+      {
+        "id": "e4",
+        "kind": "hasRoleAssignment",
+        "source": "role",
+        "target": "bucket",
+        "label": "s3:*",
+        "properties": {
+          "role": "inline policy added for orders"
+        }
+      },
+      {
+        "id": "e5",
+        "kind": "hasRoleAssignment",
+        "source": "role",
+        "target": "secret",
+        "label": "GetSecretValue",
+        "properties": {
+          "role": "inline policy added for orders"
+        }
+      }
+    ]
+  }
+}

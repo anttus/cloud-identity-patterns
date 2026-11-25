@@ -1,0 +1,79 @@
+{
+  "id": "aks-node-identity",
+  "provider": "azure",
+  "title": "AKS: kubelet identity and node access",
+  "summary": "Every node pool runs with the cluster's kubelet identity, a user-assigned managed identity in the node resource group. It pulls images from ACR. Any pod that can reach the instance metadata endpoint can request tokens for it too.",
+  "notes": [
+    "The kubelet identity is for the node (image pulls), never for applications. Give apps their own identity through workload identity.",
+    "Keep its permissions to AcrPull on the registries the cluster actually uses. Anything more is available to every pod that can reach IMDS.",
+    "Block pod access to 169.254.169.254 (network policy, or AKS IMDS restriction where available) for workloads that don't need it.",
+    "The control plane has its own separate identity (cluster identity) for managing networking and load balancers."
+  ],
+  "docs": [
+    {
+      "title": "Use a managed identity in AKS",
+      "url": "https://learn.microsoft.com/azure/aks/managed-identity-overview"
+    },
+    {
+      "title": "Integrate ACR with AKS",
+      "url": "https://learn.microsoft.com/azure/aks/cluster-container-registry-integration"
+    },
+    {
+      "title": "Block pod access to IMDS",
+      "url": "https://learn.microsoft.com/azure/aks/imds-restriction"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "pool",
+        "kind": "workload",
+        "label": "Node pool (VM scale set)"
+      },
+      {
+        "id": "kubelet",
+        "kind": "userAssignedIdentity",
+        "label": "aks-prod-agentpool (kubelet identity)"
+      },
+      {
+        "id": "acr",
+        "kind": "scope",
+        "label": "acrcontosoprod",
+        "properties": {
+          "type": "Microsoft.ContainerRegistry/registries"
+        }
+      },
+      {
+        "id": "pod",
+        "kind": "workload",
+        "label": "Any pod on the node"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "attachedTo",
+        "source": "kubelet",
+        "target": "pool"
+      },
+      {
+        "id": "e2",
+        "kind": "hasRoleAssignment",
+        "source": "kubelet",
+        "target": "acr",
+        "label": "AcrPull",
+        "properties": {
+          "role": "AcrPull"
+        }
+      },
+      {
+        "id": "e3",
+        "kind": "uses",
+        "source": "pod",
+        "target": "kubelet",
+        "label": "via IMDS (if reachable)",
+        "warning": "Pods inherit whatever the node identity can do unless IMDS is blocked."
+      }
+    ]
+  }
+}

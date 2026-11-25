@@ -1,0 +1,110 @@
+{
+  "id": "github-oidc-federation",
+  "provider": "azure",
+  "title": "GitHub Actions → Azure (Workload Identity Federation)",
+  "summary": "A GitHub Actions job swaps its short-lived OIDC token for an Entra access token. No client secret is stored anywhere.",
+  "notes": [
+    "The federated identity credential matches issuer, subject AND audience exactly. A subject of repo:contoso/app:environment:prod means only jobs that target the 'prod' environment can authenticate.",
+    "Use environment- or branch-scoped subjects instead of broad ones. A wildcard-like subject (e.g. pull_request) lets any PR run deploy.",
+    "The identity can be a user-assigned managed identity (shown) or an app registration. A UAMI needs no app registration and lives in a resource group, next to what it deploys."
+  ],
+  "docs": [
+    {
+      "title": "Workload identity federation",
+      "url": "https://learn.microsoft.com/entra/workload-id/workload-identity-federation"
+    },
+    {
+      "title": "Connect GitHub Actions to Azure with OIDC",
+      "url": "https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect"
+    },
+    {
+      "title": "GitHub: configuring OIDC in Azure",
+      "url": "https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-azure"
+    },
+    {
+      "title": "Azure/login action",
+      "url": "https://github.com/Azure/login"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "gh-issuer",
+        "kind": "externalIssuer",
+        "label": "GitHub OIDC issuer",
+        "properties": {
+          "issuer": "https://token.actions.githubusercontent.com"
+        }
+      },
+      {
+        "id": "workflow",
+        "kind": "workload",
+        "label": "deploy.yml (environment: prod)",
+        "description": "GitHub Actions job with permissions: id-token: write"
+      },
+      {
+        "id": "fic",
+        "kind": "federatedCredential",
+        "label": "FIC: environment prod",
+        "properties": {
+          "issuer": "GitHub OIDC issuer",
+          "subject": "repo:contoso/app:environment:prod",
+          "audience": "api://AzureADTokenExchange"
+        }
+      },
+      {
+        "id": "uami",
+        "kind": "userAssignedIdentity",
+        "label": "id-deploy-prod"
+      },
+      {
+        "id": "rg",
+        "kind": "scope",
+        "label": "rg-app-prod",
+        "properties": {
+          "type": "resourceGroup"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "workflow",
+        "target": "uami",
+        "label": "azure/login (client-id)"
+      },
+      {
+        "id": "e2",
+        "kind": "federatesWith",
+        "source": "gh-issuer",
+        "target": "fic",
+        "label": "issues token"
+      },
+      {
+        "id": "e3",
+        "kind": "hasRoleAssignment",
+        "source": "uami",
+        "target": "rg",
+        "label": "Contributor",
+        "properties": {
+          "role": "Contributor"
+        }
+      },
+      {
+        "id": "e2-on",
+        "kind": "attachedTo",
+        "source": "fic",
+        "target": "uami",
+        "label": "configured on"
+      },
+      {
+        "id": "sub0",
+        "kind": "subjectOf",
+        "source": "workflow",
+        "target": "fic",
+        "label": "subject match"
+      }
+    ]
+  }
+}

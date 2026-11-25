@@ -1,0 +1,130 @@
+{
+  "id": "warn-pod-create-escalation",
+  "type": "warning",
+  "provider": "kubernetes",
+  "fixedBy": "k8s-rbac",
+  "title": "Pod create rights reach every service account in the namespace",
+  "summary": "A developer may only create pods in the ci namespace. But a powerful deployer service account lives there too, and any pod can name it in serviceAccountName, so the developer gets cluster-admin through a pod they create.",
+  "notes": [
+    "Permission to create pods, or anything that makes pods (Deployments, Jobs, CronJobs), implicitly includes every service account in that namespace.",
+    "Fix: give powerful service accounts their own namespace where only the controller that needs them can create workloads.",
+    "Admission policies (ValidatingAdmissionPolicy, Kyverno, Gatekeeper) can restrict which serviceAccountName a pod may use.",
+    "Pod Security admission doesn't help here: it controls what a pod can do on the node, not which identity it runs as."
+  ],
+  "docs": [
+    {
+      "title": "RBAC good practices: workload creation",
+      "url": "https://kubernetes.io/docs/concepts/security/rbac-good-practices/#workload-creation"
+    },
+    {
+      "title": "RBAC: privilege escalation prevention",
+      "url": "https://kubernetes.io/docs/reference/access-authn-authz/rbac/#privilege-escalation-prevention-and-bootstrapping"
+    },
+    {
+      "title": "Validating admission policy",
+      "url": "https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "dev",
+        "kind": "user",
+        "label": "dev@example.com"
+      },
+      {
+        "id": "rb",
+        "kind": "roleBinding",
+        "label": "RoleBinding ci/dev-pods"
+      },
+      {
+        "id": "role",
+        "kind": "roleDefinition",
+        "label": "Role pod-creator",
+        "properties": {
+          "rules": "create pods"
+        },
+        "warning": "Creating pods = choosing any service account in the namespace."
+      },
+      {
+        "id": "pod",
+        "kind": "workload",
+        "label": "Pod: debug (serviceAccountName: deployer)",
+        "warning": "Created by the developer, runs as the deployer."
+      },
+      {
+        "id": "sa",
+        "kind": "k8sServiceAccount",
+        "label": "ci/deployer"
+      },
+      {
+        "id": "crb",
+        "kind": "roleBinding",
+        "label": "ClusterRoleBinding deployer-admin"
+      },
+      {
+        "id": "admin",
+        "kind": "roleDefinition",
+        "label": "ClusterRole cluster-admin"
+      },
+      {
+        "id": "cluster",
+        "kind": "scope",
+        "label": "cluster",
+        "properties": {
+          "type": "cluster"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "subjectOf",
+        "source": "dev",
+        "target": "rb"
+      },
+      {
+        "id": "e2",
+        "kind": "grants",
+        "source": "rb",
+        "target": "role",
+        "label": "roleRef"
+      },
+      {
+        "id": "e3",
+        "kind": "owns",
+        "source": "dev",
+        "target": "pod",
+        "label": "kubectl run"
+      },
+      {
+        "id": "e4",
+        "kind": "runsAs",
+        "source": "pod",
+        "target": "sa",
+        "label": "chosen by creator",
+        "warning": "Nothing stops the pod from naming a powerful service account."
+      },
+      {
+        "id": "e5",
+        "kind": "subjectOf",
+        "source": "sa",
+        "target": "crb"
+      },
+      {
+        "id": "e6",
+        "kind": "grants",
+        "source": "crb",
+        "target": "admin",
+        "label": "roleRef"
+      },
+      {
+        "id": "e7",
+        "kind": "scopedTo",
+        "source": "crb",
+        "target": "cluster",
+        "label": "all namespaces"
+      }
+    ]
+  }
+}

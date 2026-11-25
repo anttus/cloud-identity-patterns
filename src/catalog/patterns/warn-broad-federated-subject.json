@@ -1,0 +1,109 @@
+{
+  "id": "warn-broad-federated-subject",
+  "type": "warning",
+  "provider": "aws",
+  "fixedBy": "github-oidc-aws",
+  "title": "Broad federated subject",
+  "summary": "The role trusts GitHub tokens with a wildcard subject. Any workflow, on any branch, in any repo of the organisation can assume the production role. That includes a feature branch anyone with push access can create.",
+  "notes": [
+    "Worst case: no sub condition at all. The role then trusts every GitHub Actions job in the world that requests the sts.amazonaws.com audience.",
+    "Fix: StringEquals on sub, pinned to one repo and a protected environment (repo:contoso/app:environment:prod). Then add required reviewers on the GitHub environment.",
+    "Azure federated credentials match subjects exactly, so wildcards need an explicit opt-in there. The equivalent mistake on Azure is a pull_request or branch subject on a production identity."
+  ],
+  "docs": [
+    {
+      "title": "GitHub: OIDC subject claim examples",
+      "url": "https://docs.github.com/en/actions/reference/security/oidc#example-subject-claims"
+    },
+    {
+      "title": "AWS: create a role for OIDC federation",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html"
+    },
+    {
+      "title": "GitHub: configuring OIDC in AWS",
+      "url": "https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "gh-issuer",
+        "kind": "externalIssuer",
+        "label": "GitHub OIDC issuer"
+      },
+      {
+        "id": "intended",
+        "kind": "workload",
+        "label": "contoso/app deploy.yml (prod)"
+      },
+      {
+        "id": "other",
+        "kind": "workload",
+        "label": "contoso/any-repo, any branch",
+        "warning": "Unintended caller: matched by the wildcard."
+      },
+      {
+        "id": "idp",
+        "kind": "identityProvider",
+        "label": "IAM OIDC provider"
+      },
+      {
+        "id": "role",
+        "kind": "iamRole",
+        "label": "gha-deploy-prod"
+      },
+      {
+        "id": "account",
+        "kind": "scope",
+        "label": "prod account (222222222222)",
+        "properties": {
+          "type": "AWS account"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "intended",
+        "target": "role"
+      },
+      {
+        "id": "e2",
+        "kind": "runsAs",
+        "source": "other",
+        "target": "role",
+        "warning": "Also allowed: nothing in the trust policy tells these two callers apart."
+      },
+      {
+        "id": "e3",
+        "kind": "federatesWith",
+        "source": "gh-issuer",
+        "target": "idp",
+        "label": "registered as"
+      },
+      {
+        "id": "e4",
+        "kind": "federatesWith",
+        "source": "idp",
+        "target": "role",
+        "label": "sub LIKE repo:contoso/*",
+        "properties": {
+          "aud (StringEquals)": "sts.amazonaws.com",
+          "sub (StringLike)": "repo:contoso/*"
+        },
+        "warning": "Wildcard subject: trusts every repo, branch, PR and environment in the org."
+      },
+      {
+        "id": "e5",
+        "kind": "hasRoleAssignment",
+        "source": "role",
+        "target": "account",
+        "label": "AdministratorAccess",
+        "properties": {
+          "role": "AdministratorAccess"
+        }
+      }
+    ]
+  }
+}

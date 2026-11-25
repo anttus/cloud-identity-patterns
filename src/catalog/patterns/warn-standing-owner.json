@@ -1,0 +1,104 @@
+{
+  "id": "warn-standing-owner",
+  "type": "warning",
+  "provider": "azure",
+  "fixedBy": "pim-eligible-access",
+  "title": "Standing Owner access",
+  "summary": "Several people hold Owner permanently on a production subscription. Each account is a full-control target around the clock, including the contractor account nobody remembered to remove.",
+  "notes": [
+    "Owner can also grant roles to others. One compromised account can create persistence that outlives the original incident.",
+    "Fix: make the assignments eligible through PIM, time-bound and with approval for Owner. Day-to-day work then happens with Reader or a narrow custom role.",
+    "Keep exactly two break-glass accounts with permanent access, excluded from normal Conditional Access, monitored, and with their credentials kept offline."
+  ],
+  "docs": [
+    {
+      "title": "Privileged Identity Management",
+      "url": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-configure"
+    },
+    {
+      "title": "Emergency access accounts",
+      "url": "https://learn.microsoft.com/entra/identity/role-based-access-control/security-emergency-access"
+    },
+    {
+      "title": "Azure RBAC best practices",
+      "url": "https://learn.microsoft.com/azure/role-based-access-control/best-practices"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "alice",
+        "kind": "user",
+        "label": "alice@contoso.com"
+      },
+      {
+        "id": "bob",
+        "kind": "user",
+        "label": "bob@contoso.com"
+      },
+      {
+        "id": "ext",
+        "kind": "user",
+        "label": "contractor@partner.com (guest)",
+        "warning": "Guest account outside your lifecycle processes, still with Owner."
+      },
+      {
+        "id": "sub",
+        "kind": "scope",
+        "label": "sub-prod",
+        "properties": {
+          "type": "subscription"
+        }
+      },
+      {
+        "id": "rg",
+        "kind": "scope",
+        "label": "rg-core-prod",
+        "properties": {
+          "type": "resourceGroup"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "hasRoleAssignment",
+        "source": "alice",
+        "target": "sub",
+        "label": "Owner (permanent)",
+        "properties": {
+          "role": "Owner"
+        },
+        "warning": "Always-on Owner."
+      },
+      {
+        "id": "e2",
+        "kind": "hasRoleAssignment",
+        "source": "bob",
+        "target": "sub",
+        "label": "Owner (permanent)",
+        "properties": {
+          "role": "Owner"
+        },
+        "warning": "Always-on Owner."
+      },
+      {
+        "id": "e3",
+        "kind": "hasRoleAssignment",
+        "source": "ext",
+        "target": "sub",
+        "label": "Owner (permanent)",
+        "properties": {
+          "role": "Owner"
+        },
+        "warning": "Always-on Owner for an external identity."
+      },
+      {
+        "id": "e4",
+        "kind": "childOf",
+        "source": "rg",
+        "target": "sub"
+      }
+    ]
+  }
+}

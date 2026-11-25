@@ -1,0 +1,53 @@
+{
+  "id": "k8s-service-auth",
+  "title": "Pod → service auth: projected token vs Vault vs SPIFFE",
+  "topic": "Kubernetes",
+  "summary": "Three ways a pod proves who it is to something that isn't a cloud API. All three start from the pod's service account; they differ in who checks it and what the pod receives.",
+  "patterns": ["k8s-projected-sa-token", "k8s-vault-auth", "k8s-spiffe-spire"],
+  "dimensions": [
+    {
+      "label": "Pod presents",
+      "values": [
+        "Projected SA token (JWT)",
+        "SA token at login, then a Vault token",
+        "X.509-SVID (or JWT-SVID)"
+      ]
+    },
+    {
+      "label": "Verified by",
+      "values": [
+        "Receiver, offline via OIDC keys",
+        "Vault, via TokenReview",
+        "Peer, via the trust bundle"
+      ]
+    },
+    {
+      "label": "Extra infrastructure",
+      "values": ["None", "Vault cluster", "SPIRE server + node agents"]
+    },
+    {
+      "label": "Lifetime",
+      "values": ["Minutes to hours, kubelet rotates", "Vault token TTL", "About 1h, auto-rotated"]
+    },
+    {
+      "label": "Works outside Kubernetes",
+      "values": [
+        "Receiver can be anywhere; caller must be a pod",
+        "Yes, other auth methods",
+        "Yes: VMs, other clusters, federated domains"
+      ]
+    },
+    {
+      "label": "Best for",
+      "values": [
+        "A few internal APIs",
+        "Fetching secrets and dynamic credentials",
+        "Mesh-wide mTLS across platforms"
+      ]
+    }
+  ],
+  "notes": [
+    "Projected tokens underpin both of the others: Vault and SPIRE (node attestation) consume them.",
+    "Prefer the receiver checking an audience-bound token offline over sharing a static API key."
+  ]
+}

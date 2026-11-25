@@ -1,0 +1,113 @@
+{
+  "id": "eks-pod-identity",
+  "provider": "aws",
+  "title": "EKS Pod Identity",
+  "summary": "A pod identity association, created through the EKS API, links a service account to an IAM role. The role trusts the EKS service principal instead of a per-cluster OIDC provider, so one trust policy works for every cluster.",
+  "notes": [
+    "Install the eks-pod-identity-agent add-on. The SDK in the pod gets credentials from the agent on the node.",
+    "The trust policy is identical for every cluster: Service pods.eks.amazonaws.com with sts:AssumeRole and sts:TagSession. The association, not the trust policy, decides which service account gets the role.",
+    "Sessions carry tags (eks-cluster-name, kubernetes-namespace, kubernetes-service-account…), so one role can use ABAC conditions instead of many near-identical roles.",
+    "No service account annotation is needed, and the mapping is visible and audited through the EKS API."
+  ],
+  "docs": [
+    {
+      "title": "EKS Pod Identity",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html"
+    },
+    {
+      "title": "How EKS Pod Identity works",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/pod-id-how-it-works.html"
+    },
+    {
+      "title": "Set up the EKS Pod Identity Agent",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "pod",
+        "kind": "workload",
+        "label": "Pod: orders-api"
+      },
+      {
+        "id": "ksa",
+        "kind": "k8sServiceAccount",
+        "label": "orders/orders-sa",
+        "description": "No annotation needed."
+      },
+      {
+        "id": "assoc",
+        "kind": "roleBinding",
+        "label": "Pod identity association",
+        "properties": {
+          "cluster": "eks-prod",
+          "namespace": "orders",
+          "serviceAccount": "orders-sa"
+        }
+      },
+      {
+        "id": "svc",
+        "kind": "identityProvider",
+        "label": "EKS Auth (pods.eks.amazonaws.com)"
+      },
+      {
+        "id": "role",
+        "kind": "iamRole",
+        "label": "orders-api"
+      },
+      {
+        "id": "secret",
+        "kind": "scope",
+        "label": "secret: orders/db",
+        "properties": {
+          "type": "Secrets Manager secret"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "pod",
+        "target": "ksa",
+        "label": "serviceAccountName"
+      },
+      {
+        "id": "e2",
+        "kind": "subjectOf",
+        "source": "ksa",
+        "target": "assoc",
+        "label": "namespace + name"
+      },
+      {
+        "id": "e3",
+        "kind": "grants",
+        "source": "assoc",
+        "target": "role",
+        "label": "roleArn"
+      },
+      {
+        "id": "e4",
+        "kind": "federatesWith",
+        "source": "svc",
+        "target": "role",
+        "label": "trust policy",
+        "properties": {
+          "principal": "Service: pods.eks.amazonaws.com",
+          "actions": "sts:AssumeRole, sts:TagSession"
+        }
+      },
+      {
+        "id": "e5",
+        "kind": "hasRoleAssignment",
+        "source": "role",
+        "target": "secret",
+        "label": "secretsmanager:GetSecretValue",
+        "properties": {
+          "role": "orders-api-policy"
+        }
+      }
+    ]
+  }
+}

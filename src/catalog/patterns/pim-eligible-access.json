@@ -1,0 +1,102 @@
+{
+  "id": "pim-eligible-access",
+  "provider": "azure",
+  "title": "PIM: eligible vs active access",
+  "summary": "Eligible assignments (dashed) grant nothing until someone activates them for a limited time. They can target a role directly, or membership in a group that holds the role (PIM for Groups).",
+  "notes": [
+    "Direct path: the user is eligible for Contributor on the subscription. Activation can require MFA, a justification, and approval, and it expires (e.g. after 8h).",
+    "Group path (PIM for Groups): the group holds a standing Owner assignment on one resource group, and the user is only an eligible member. This keeps role assignments stable while membership is just-in-time.",
+    "Role assignments inherit down the scope tree: Contributor on the subscription also applies to every resource group under it."
+  ],
+  "docs": [
+    {
+      "title": "What is Privileged Identity Management?",
+      "url": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-configure"
+    },
+    {
+      "title": "PIM for Groups",
+      "url": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/concept-pim-for-groups"
+    },
+    {
+      "title": "Activate a Microsoft Entra role in PIM",
+      "url": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-how-to-activate-role"
+    },
+    {
+      "title": "Assign Azure resource roles in PIM",
+      "url": "https://learn.microsoft.com/entra/id-governance/privileged-identity-management/pim-resource-roles-assign-roles"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "alice",
+        "kind": "user",
+        "label": "alice@contoso.com"
+      },
+      {
+        "id": "grp",
+        "kind": "group",
+        "label": "grp-pim-rg-prod-owners",
+        "properties": {
+          "pimForGroups": "enabled"
+        }
+      },
+      {
+        "id": "sub",
+        "kind": "scope",
+        "label": "sub-prod",
+        "properties": {
+          "type": "subscription"
+        }
+      },
+      {
+        "id": "rg",
+        "kind": "scope",
+        "label": "rg-core-prod",
+        "properties": {
+          "type": "resourceGroup"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "isEligibleFor",
+        "source": "alice",
+        "target": "sub",
+        "label": "Contributor (eligible, max 8h)",
+        "properties": {
+          "role": "Contributor",
+          "maxDuration": "PT8H",
+          "approval": "required"
+        }
+      },
+      {
+        "id": "e2",
+        "kind": "isEligibleFor",
+        "source": "alice",
+        "target": "grp",
+        "label": "member (eligible, max 4h)",
+        "properties": {
+          "maxDuration": "PT4H"
+        }
+      },
+      {
+        "id": "e3",
+        "kind": "hasRoleAssignment",
+        "source": "grp",
+        "target": "rg",
+        "label": "Owner",
+        "properties": {
+          "role": "Owner"
+        }
+      },
+      {
+        "id": "e4",
+        "kind": "childOf",
+        "source": "rg",
+        "target": "sub"
+      }
+    ]
+  }
+}

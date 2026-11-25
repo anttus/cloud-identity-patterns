@@ -1,0 +1,95 @@
+{
+  "id": "warn-confused-deputy",
+  "type": "warning",
+  "provider": "aws",
+  "title": "Third-party role without ExternalId (confused deputy)",
+  "summary": "A SaaS vendor assumes roles in its customers' accounts. The customer's role trusts the vendor's account but checks no ExternalId, so another customer of the same vendor can enter your role ARN and have the vendor act on your account.",
+  "notes": [
+    "The vendor is the 'deputy': it holds legitimate power (sts:AssumeRole into many customers) and can be tricked into using it for the wrong customer.",
+    "Fix: the vendor generates a unique ExternalId per customer, and your trust policy requires it (Condition StringEquals sts:ExternalId). An attacker can supply your role ARN, but not your ExternalId.",
+    "Also trust the vendor's specific role ARN, not their whole account."
+  ],
+  "docs": [
+    {
+      "title": "The confused deputy problem",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html"
+    },
+    {
+      "title": "Access to AWS accounts owned by third parties",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_common-scenarios_third-party.html"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "attacker",
+        "kind": "user",
+        "label": "Other vendor customer",
+        "warning": "Registers YOUR role ARN in their vendor workspace."
+      },
+      {
+        "id": "vendor",
+        "kind": "workload",
+        "label": "Vendor SaaS (cost analytics)"
+      },
+      {
+        "id": "vendor-role",
+        "kind": "iamRole",
+        "label": "vendor-integration",
+        "properties": {
+          "arn": "arn:aws:iam::999999999999:role/vendor-integration"
+        }
+      },
+      {
+        "id": "victim-role",
+        "kind": "iamRole",
+        "label": "VendorReadAccess (your account)"
+      },
+      {
+        "id": "bucket",
+        "kind": "scope",
+        "label": "s3://billing-exports",
+        "properties": {
+          "type": "S3 bucket"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "uses",
+        "source": "attacker",
+        "target": "vendor",
+        "label": "submits your role ARN"
+      },
+      {
+        "id": "e2",
+        "kind": "runsAs",
+        "source": "vendor",
+        "target": "vendor-role"
+      },
+      {
+        "id": "e3",
+        "kind": "canAssume",
+        "source": "vendor-role",
+        "target": "victim-role",
+        "label": "sts:AssumeRole",
+        "properties": {
+          "target trust policy": "Principal: arn:aws:iam::999999999999:root",
+          "condition": "(none)"
+        },
+        "warning": "No sts:ExternalId condition: the vendor can't tell which of its customers asked."
+      },
+      {
+        "id": "e4",
+        "kind": "hasRoleAssignment",
+        "source": "victim-role",
+        "target": "bucket",
+        "label": "s3:GetObject",
+        "properties": {
+          "role": "VendorReadPolicy"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "id": "k8s-workload-identity",
+  "title": "Pod → cloud identity: AKS vs EKS vs GKE",
+  "topic": "Kubernetes",
+  "summary": "A pod's Kubernetes service account becomes a cloud identity without node-level credentials or stored keys. Each cloud links the KSA to a cloud principal in its own way.",
+  "patterns": ["aks-workload-identity", "eks-irsa", "gke-workload-identity"],
+  "dimensions": [
+    {
+      "label": "Token source",
+      "values": [
+        "Cluster OIDC issuer",
+        "Cluster OIDC issuer",
+        "Project workload pool (PROJECT.svc.id.goog)"
+      ]
+    },
+    {
+      "label": "Cloud identity",
+      "values": [
+        "User-assigned managed identity",
+        "IAM role",
+        "Google service account (or the KSA principal directly)"
+      ]
+    },
+    {
+      "label": "KSA → identity link",
+      "values": [
+        "Annotation azure.workload.identity/client-id",
+        "Annotation eks.amazonaws.com/role-arn",
+        "Annotation iam.gke.io/gcp-service-account"
+      ]
+    },
+    {
+      "label": "Enforcing check",
+      "values": [
+        "Federated credential subject system:serviceaccount:ns:name",
+        "Trust policy sub condition",
+        "workloadIdentityUser binding for [ns/name]"
+      ]
+    },
+    {
+      "label": "Pod opt-in",
+      "values": [
+        "Label azure.workload.identity/use: \"true\"",
+        "None (webhook acts on annotated SAs)",
+        "Node pool runs the GKE metadata server"
+      ]
+    },
+    {
+      "label": "Newer variant",
+      "values": [
+        "—",
+        "EKS Pod Identity (no OIDC provider; association via EKS API)",
+        "Direct principal:// IAM grants (no GSA)"
+      ]
+    }
+  ],
+  "notes": [
+    "In all three, the annotation is a hint and the cloud-side trust check is the actual security boundary. An annotation alone grants nothing.",
+    "Isolation is per Kubernetes service account. Sharing one KSA across workloads shares the cloud identity too."
+  ]
+}

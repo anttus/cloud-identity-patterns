@@ -1,0 +1,103 @@
+{
+  "id": "uami-vs-sami",
+  "provider": "azure",
+  "title": "User-assigned vs system-assigned managed identity",
+  "summary": "A system-assigned identity lives and dies with one resource. A user-assigned identity is a standalone resource that several workloads can share.",
+  "notes": [
+    "SAMI: created and deleted with its resource. Simple and strictly 1:1, but role assignments must be recreated if the resource is rebuilt.",
+    "UAMI: independent lifecycle. You can pre-provision it and its role assignments before the workload exists, which helps with IaC ordering and blue/green deployments.",
+    "Sharing a UAMI is convenient but widens blast radius. Share only between workloads that need exactly the same access."
+  ],
+  "docs": [
+    {
+      "title": "Managed identities overview",
+      "url": "https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview"
+    },
+    {
+      "title": "Managed identity best practices",
+      "url": "https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/managed-identity-best-practice-recommendations"
+    },
+    {
+      "title": "Manage user-assigned managed identities",
+      "url": "https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/manage-user-assigned-managed-identities-azure-portal"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "vm",
+        "kind": "workload",
+        "label": "vm-batch-01"
+      },
+      {
+        "id": "sami",
+        "kind": "systemAssignedIdentity",
+        "label": "vm-batch-01 (system-assigned)"
+      },
+      {
+        "id": "func",
+        "kind": "workload",
+        "label": "func-ingest"
+      },
+      {
+        "id": "ca",
+        "kind": "workload",
+        "label": "ca-ingest-worker"
+      },
+      {
+        "id": "uami",
+        "kind": "userAssignedIdentity",
+        "label": "id-ingest"
+      },
+      {
+        "id": "st",
+        "kind": "scope",
+        "label": "stingestprod",
+        "properties": {
+          "type": "Microsoft.Storage/storageAccounts"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "attachedTo",
+        "source": "sami",
+        "target": "vm",
+        "label": "lifecycle-bound"
+      },
+      {
+        "id": "e2",
+        "kind": "attachedTo",
+        "source": "uami",
+        "target": "func"
+      },
+      {
+        "id": "e3",
+        "kind": "attachedTo",
+        "source": "uami",
+        "target": "ca"
+      },
+      {
+        "id": "e4",
+        "kind": "hasRoleAssignment",
+        "source": "sami",
+        "target": "st",
+        "label": "Storage Blob Data Reader",
+        "properties": {
+          "role": "Storage Blob Data Reader"
+        }
+      },
+      {
+        "id": "e5",
+        "kind": "hasRoleAssignment",
+        "source": "uami",
+        "target": "st",
+        "label": "Storage Blob Data Contributor",
+        "properties": {
+          "role": "Storage Blob Data Contributor"
+        }
+      }
+    ]
+  }
+}

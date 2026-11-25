@@ -1,0 +1,53 @@
+{
+  "id": "k8s-node-identity",
+  "title": "Node identity: AKS vs EKS vs GKE",
+  "topic": "Kubernetes",
+  "summary": "Every node carries a cloud identity for its own work, such as pulling images. Pods share the node, so each cloud needs some way to keep them away from it.",
+  "patterns": ["aks-node-identity", "eks-node-role", "gke-node-service-account"],
+  "dimensions": [
+    {
+      "label": "Node identity",
+      "values": [
+        "Kubelet identity (user-assigned MI)",
+        "Node IAM role (instance profile)",
+        "Node Google service account"
+      ]
+    },
+    {
+      "label": "Image pull permission",
+      "values": [
+        "AcrPull on the registry",
+        "AmazonEC2ContainerRegistryPullOnly",
+        "roles/artifactregistry.reader"
+      ]
+    },
+    {
+      "label": "How pods are kept away",
+      "values": [
+        "Block IMDS (network policy / IMDS restriction)",
+        "IMDSv2 with hop limit 1",
+        "GKE metadata server (comes with Workload Identity)"
+      ]
+    },
+    {
+      "label": "Default to watch out for",
+      "values": [
+        "Extra roles granted to the kubelet identity",
+        "Hop limit 2, IMDSv1, CNI policy on the node role",
+        "Compute Engine default SA with Editor"
+      ]
+    },
+    {
+      "label": "Separate control-plane identity",
+      "values": [
+        "Yes (cluster identity)",
+        "Yes (cluster IAM role)",
+        "Google-managed service agents"
+      ]
+    }
+  ],
+  "notes": [
+    "Rule for all three: the node identity is infrastructure. Application permissions belong on per-service-account identities. See the 'App permissions on the node role' warning.",
+    "GKE is the only one where enabling workload identity also closes the node-credential path. On AKS and EKS it's a separate setting you must remember."
+  ]
+}

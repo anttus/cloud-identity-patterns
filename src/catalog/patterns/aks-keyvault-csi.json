@@ -1,0 +1,135 @@
+{
+  "id": "aks-keyvault-csi",
+  "provider": "azure",
+  "title": "AKS: Key Vault secrets via the Secrets Store CSI driver",
+  "summary": "The Key Vault provider for the Secrets Store CSI driver mounts secrets as files in the pod. It authenticates with the pod's own workload identity, so the vault sees the app's identity, not the node's.",
+  "notes": [
+    "Enable the azure-keyvault-secrets-provider add-on. The SecretProviderClass names the vault, the objects, and the workload identity's clientID.",
+    "Secrets are fetched when the pod mounts the volume. With rotation enabled the driver polls for new versions, but the app must re-read the file to notice.",
+    "Syncing to a Kubernetes Secret (secretObjects) is optional and puts the value into etcd. Use it only when something needs an env var or an imagePullSecret."
+  ],
+  "docs": [
+    {
+      "title": "Key Vault provider for Secrets Store CSI Driver",
+      "url": "https://learn.microsoft.com/azure/aks/csi-secrets-store-driver"
+    },
+    {
+      "title": "Connect the provider with workload identity",
+      "url": "https://learn.microsoft.com/azure/aks/csi-secrets-store-identity-access"
+    },
+    {
+      "title": "Secrets Store CSI Driver (Kubernetes SIG project)",
+      "url": "https://secrets-store-csi-driver.sigs.k8s.io/"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "pod",
+        "kind": "workload",
+        "label": "Pod: orders-api (CSI volume)"
+      },
+      {
+        "id": "csi",
+        "kind": "workload",
+        "label": "Secrets Store CSI driver + Azure provider"
+      },
+      {
+        "id": "ksa",
+        "kind": "k8sServiceAccount",
+        "label": "orders/orders-sa"
+      },
+      {
+        "id": "issuer",
+        "kind": "externalIssuer",
+        "label": "AKS OIDC issuer"
+      },
+      {
+        "id": "fic",
+        "kind": "federatedCredential",
+        "label": "FIC: orders-sa",
+        "properties": {
+          "issuer": "AKS OIDC issuer",
+          "subject": "system:serviceaccount:orders:orders-sa",
+          "audience": "api://AzureADTokenExchange"
+        }
+      },
+      {
+        "id": "uami",
+        "kind": "userAssignedIdentity",
+        "label": "id-orders-api"
+      },
+      {
+        "id": "kv",
+        "kind": "scope",
+        "label": "kv-orders-prod",
+        "properties": {
+          "type": "Microsoft.KeyVault/vaults"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "uses",
+        "source": "pod",
+        "target": "csi",
+        "label": "mounts SecretProviderClass"
+      },
+      {
+        "id": "e2",
+        "kind": "runsAs",
+        "source": "pod",
+        "target": "ksa"
+      },
+      {
+        "id": "e3",
+        "kind": "runsAs",
+        "source": "csi",
+        "target": "uami",
+        "label": "with the pod's KSA token",
+        "properties": {
+          "SecretProviderClass": "provider: azure, clientID: <uami-client-id>"
+        }
+      },
+      {
+        "id": "e4",
+        "kind": "runsAs",
+        "source": "ksa",
+        "target": "uami",
+        "label": "client-id annotation"
+      },
+      {
+        "id": "e5",
+        "kind": "federatesWith",
+        "source": "issuer",
+        "target": "fic",
+        "label": "issues token"
+      },
+      {
+        "id": "e6",
+        "kind": "hasRoleAssignment",
+        "source": "uami",
+        "target": "kv",
+        "label": "Key Vault Secrets User",
+        "properties": {
+          "role": "Key Vault Secrets User"
+        }
+      },
+      {
+        "id": "e5-on",
+        "kind": "attachedTo",
+        "source": "fic",
+        "target": "uami",
+        "label": "configured on"
+      },
+      {
+        "id": "sub0",
+        "kind": "subjectOf",
+        "source": "ksa",
+        "target": "fic",
+        "label": "subject match"
+      }
+    ]
+  }
+}

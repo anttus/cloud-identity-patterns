@@ -1,0 +1,132 @@
+{
+  "id": "k8s-spiffe-spire",
+  "provider": "kubernetes",
+  "title": "SPIFFE/SPIRE workload identity for service-to-service mTLS",
+  "summary": "A SPIRE agent on each node checks which pod is asking, then hands it a short-lived certificate whose ID is derived from its namespace and service account. Services authenticate each other with mTLS using those certificates, without any cloud IAM.",
+  "notes": [
+    "A SPIFFE ID is a URI such as spiffe://example.org/ns/shop/sa/checkout. It means the same thing on Kubernetes, VMs and in any cloud.",
+    "Two attestation steps: the agent proves which node it runs on (node attestation, e.g. with a projected token), then checks the calling process against the kubelet (workload attestation).",
+    "Registration entries map selectors (namespace, service account, labels) to SPIFFE IDs. Who can create entries effectively controls identity.",
+    "Certificates are rotated automatically. Trust domains can be federated so services in different clusters or companies verify each other.",
+    "Clouds can accept JWT-SVIDs through OIDC federation, so the same identity can also reach cloud APIs."
+  ],
+  "docs": [
+    {
+      "title": "SPIFFE concepts",
+      "url": "https://spiffe.io/docs/latest/spiffe-about/spiffe-concepts/"
+    },
+    {
+      "title": "SPIRE on Kubernetes",
+      "url": "https://spiffe.io/docs/latest/try/getting-started-k8s/"
+    },
+    {
+      "title": "SPIFFE ID specification",
+      "url": "https://github.com/spiffe/spiffe/blob/main/standards/SPIFFE-ID.md"
+    },
+    {
+      "title": "SPIRE Kubernetes workload attestor",
+      "url": "https://github.com/spiffe/spire/blob/main/doc/plugin_agent_workloadattestor_k8s.md"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "pod",
+        "kind": "workload",
+        "label": "Pod: checkout"
+      },
+      {
+        "id": "sa",
+        "kind": "k8sServiceAccount",
+        "label": "shop/checkout"
+      },
+      {
+        "id": "entry",
+        "kind": "roleBinding",
+        "label": "Registration entry",
+        "properties": {
+          "selectors": "k8s:ns:shop, k8s:sa:checkout",
+          "spiffeId": "spiffe://example.org/ns/shop/sa/checkout"
+        }
+      },
+      {
+        "id": "agent",
+        "kind": "workload",
+        "label": "SPIRE agent (DaemonSet)"
+      },
+      {
+        "id": "server",
+        "kind": "identityProvider",
+        "label": "SPIRE server (trust domain example.org)"
+      },
+      {
+        "id": "svid",
+        "kind": "credential",
+        "label": "X.509-SVID (1h, auto-rotated)"
+      },
+      {
+        "id": "peer",
+        "kind": "workload",
+        "label": "Pod: payments (mTLS peer)"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "pod",
+        "target": "sa",
+        "label": "serviceAccountName"
+      },
+      {
+        "id": "e2",
+        "kind": "subjectOf",
+        "source": "sa",
+        "target": "entry",
+        "label": "selector match"
+      },
+      {
+        "id": "e3",
+        "kind": "childOf",
+        "source": "entry",
+        "target": "server",
+        "label": "registered in"
+      },
+      {
+        "id": "e4",
+        "kind": "federatesWith",
+        "source": "agent",
+        "target": "server",
+        "label": "node attestation"
+      },
+      {
+        "id": "e5",
+        "kind": "uses",
+        "source": "agent",
+        "target": "pod",
+        "label": "workload attestation"
+      },
+      {
+        "id": "e6",
+        "kind": "attachedTo",
+        "source": "svid",
+        "target": "pod",
+        "label": "Workload API socket"
+      },
+      {
+        "id": "e7",
+        "kind": "uses",
+        "source": "pod",
+        "target": "peer",
+        "label": "mTLS"
+      },
+      {
+        "id": "e8",
+        "kind": "federatesWith",
+        "source": "server",
+        "target": "peer",
+        "label": "trust bundle"
+      }
+    ]
+  }
+}

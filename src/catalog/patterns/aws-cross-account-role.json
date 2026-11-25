@@ -1,0 +1,125 @@
+{
+  "id": "aws-cross-account-role",
+  "provider": "aws",
+  "title": "AWS cross-account role assumption",
+  "summary": "A role in the tooling account assumes a role in the prod account. Both sides must agree: the caller needs permission to call sts:AssumeRole, and the target role's trust policy must name the caller.",
+  "notes": [
+    "Trust policy (on the target) answers 'who may become me?'. Permission policy (on the caller) answers 'what may I call?'. Cross-account access needs both.",
+    "Name the specific caller role ARN in the trust policy, not the whole account (arn:aws:iam::111111111111:root). Trusting the account root delegates the decision to every admin in that account.",
+    "The assumed session carries only the target role's permissions. The caller's own permissions do not carry over."
+  ],
+  "docs": [
+    {
+      "title": "Tutorial: delegate access across accounts with roles",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/tutorial_cross-account-with-roles.html"
+    },
+    {
+      "title": "Access across AWS accounts you own",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_common-scenarios_aws-accounts.html"
+    },
+    {
+      "title": "STS AssumeRole API reference",
+      "url": "https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "ci",
+        "kind": "workload",
+        "label": "CodeBuild project: release"
+      },
+      {
+        "id": "role-a",
+        "kind": "iamRole",
+        "label": "ci-deployer",
+        "properties": {
+          "arn": "arn:aws:iam::111111111111:role/ci-deployer"
+        }
+      },
+      {
+        "id": "role-b",
+        "kind": "iamRole",
+        "label": "prod-deploy",
+        "properties": {
+          "arn": "arn:aws:iam::222222222222:role/prod-deploy"
+        }
+      },
+      {
+        "id": "acct-a",
+        "kind": "scope",
+        "label": "tooling account (111111111111)",
+        "properties": {
+          "type": "AWS account"
+        }
+      },
+      {
+        "id": "acct-b",
+        "kind": "scope",
+        "label": "prod account (222222222222)",
+        "properties": {
+          "type": "AWS account"
+        }
+      },
+      {
+        "id": "bucket",
+        "kind": "scope",
+        "label": "s3://prod-artifacts",
+        "properties": {
+          "type": "S3 bucket"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "ci",
+        "target": "role-a",
+        "label": "service role"
+      },
+      {
+        "id": "e2",
+        "kind": "canAssume",
+        "source": "role-a",
+        "target": "role-b",
+        "label": "sts:AssumeRole",
+        "properties": {
+          "caller permission policy": "Allow sts:AssumeRole on arn:aws:iam::222222222222:role/prod-deploy",
+          "target trust policy": "Principal: arn:aws:iam::111111111111:role/ci-deployer"
+        }
+      },
+      {
+        "id": "e3",
+        "kind": "hasRoleAssignment",
+        "source": "role-b",
+        "target": "bucket",
+        "label": "s3:PutObject",
+        "properties": {
+          "role": "prod-deploy-policy (inline)"
+        }
+      },
+      {
+        "id": "e4",
+        "kind": "childOf",
+        "source": "role-a",
+        "target": "acct-a",
+        "label": "in account"
+      },
+      {
+        "id": "e5",
+        "kind": "childOf",
+        "source": "role-b",
+        "target": "acct-b",
+        "label": "in account"
+      },
+      {
+        "id": "e6",
+        "kind": "childOf",
+        "source": "bucket",
+        "target": "acct-b",
+        "label": "in account"
+      }
+    ]
+  }
+}

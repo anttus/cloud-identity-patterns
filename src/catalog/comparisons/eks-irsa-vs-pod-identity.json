@@ -1,0 +1,49 @@
+{
+  "id": "eks-irsa-vs-pod-identity",
+  "title": "EKS: IRSA vs Pod Identity",
+  "topic": "Kubernetes",
+  "summary": "Both give a service account its own IAM role. IRSA federates a per-cluster OIDC issuer; Pod Identity uses an EKS API association and a fixed service principal.",
+  "patterns": ["eks-irsa", "eks-pod-identity"],
+  "dimensions": [
+    {
+      "label": "Per-cluster setup",
+      "values": [
+        "Register the cluster's OIDC issuer as an IAM OIDC provider",
+        "Install the eks-pod-identity-agent add-on"
+      ]
+    },
+    {
+      "label": "Role trust policy",
+      "values": [
+        "Cluster-specific: OIDC provider + sub condition",
+        "Same everywhere: Service pods.eks.amazonaws.com"
+      ]
+    },
+    {
+      "label": "Where SA → role mapping lives",
+      "values": [
+        "SA annotation (hint) + trust policy (enforced)",
+        "Pod identity association (EKS API)"
+      ]
+    },
+    {
+      "label": "Reusing a role across clusters",
+      "values": [
+        "Edit the trust policy for every cluster",
+        "Create an association; trust policy unchanged"
+      ]
+    },
+    {
+      "label": "Session tags for ABAC",
+      "values": ["No", "Yes: cluster, namespace, service account…"]
+    },
+    {
+      "label": "Also works on",
+      "values": ["Fargate, and self-managed clusters with a public issuer", "EKS on EC2 nodes"]
+    }
+  ],
+  "notes": [
+    "For new EKS workloads on EC2, Pod Identity is usually simpler. IRSA remains the option for Fargate and for non-EKS clusters.",
+    "Both are only as strong as their mapping: an IRSA trust policy without a sub condition, or a sloppy association, hands the role to the wrong pods."
+  ]
+}

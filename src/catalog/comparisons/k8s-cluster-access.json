@@ -1,0 +1,61 @@
+{
+  "id": "k8s-cluster-access",
+  "title": "Human cluster access: AKS vs EKS vs GKE",
+  "topic": "Kubernetes",
+  "summary": "All three use the cloud's identity system to authenticate people to the Kubernetes API, but they differ on where authorization lives: in cloud IAM, in Kubernetes RBAC, or both.",
+  "patterns": ["aks-cluster-access", "eks-cluster-access", "gke-cluster-access"],
+  "dimensions": [
+    {
+      "label": "Authentication",
+      "values": [
+        "Entra ID token via kubelogin",
+        "IAM identity via aws eks get-token (pre-signed STS call)",
+        "Google identity via gke-gcloud-auth-plugin"
+      ]
+    },
+    {
+      "label": "Authorization lives in",
+      "values": [
+        "Azure RBAC (with Azure RBAC for K8s) or Kubernetes RBAC with Entra groups",
+        "EKS access entries + access policies (or Kubernetes RBAC via mapped groups)",
+        "Cloud IAM AND Kubernetes RBAC (either one can allow)"
+      ]
+    },
+    {
+      "label": "Namespace-level grants from cloud IAM",
+      "values": [
+        "Yes: role assignment at namespace scope",
+        "Yes: access entry with namespace accessScope",
+        "No: IAM is project-level; use RoleBindings"
+      ]
+    },
+    {
+      "label": "Permission to fetch a kubeconfig",
+      "values": [
+        "AKS Cluster User Role",
+        "eks:DescribeCluster",
+        "container.clusterViewer (or any container.* role)"
+      ]
+    },
+    {
+      "label": "Groups as subjects",
+      "values": [
+        "Entra security groups",
+        "Map IAM roles to Kubernetes groups in the access entry",
+        "Google Groups nested in gke-security-groups"
+      ]
+    },
+    {
+      "label": "Credential that bypasses all of it",
+      "values": [
+        "Local admin account (--admin): disable local accounts",
+        "Cluster creator's implicit admin: disable bootstrap admin",
+        "Legacy client cert / basic auth (off by default)"
+      ]
+    }
+  ],
+  "notes": [
+    "GKE's 'either one can allow' model is the one that most often surprises people: a project-level IAM role silently overrides careful namespace RBAC.",
+    "In all three, prefer group-based grants at namespace scope, and treat the bypass credential in the last row as break-glass only."
+  ]
+}

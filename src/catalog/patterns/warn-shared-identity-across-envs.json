@@ -1,0 +1,165 @@
+{
+  "id": "warn-shared-identity-across-envs",
+  "type": "warning",
+  "provider": "azure",
+  "fixedBy": "github-oidc-federation",
+  "title": "One identity shared across environments",
+  "summary": "Dev and prod deployments use the same managed identity. Anything that can deploy to dev, such as a feature branch or a less-reviewed workflow, holds the same token that can change production.",
+  "notes": [
+    "The federated credentials pin environments correctly, but both lead to the same identity. The environment boundary disappears at the role assignments.",
+    "Fix: one identity per environment, each with role assignments only in its own environment, and prod's federated credential bound to a protected GitHub environment.",
+    "The same applies to AWS roles and GCP service accounts. Look for any principal whose role assignments span environments."
+  ],
+  "docs": [
+    {
+      "title": "Managed identity best practices",
+      "url": "https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/managed-identity-best-practice-recommendations"
+    },
+    {
+      "title": "GitHub: OIDC subject claim examples",
+      "url": "https://docs.github.com/en/actions/reference/security/oidc#example-subject-claims"
+    },
+    {
+      "title": "Federated identity credentials on a user-assigned managed identity",
+      "url": "https://learn.microsoft.com/entra/workload-id/workload-identity-federation-create-trust-user-assigned-managed-identity"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "gh-issuer",
+        "kind": "externalIssuer",
+        "label": "GitHub OIDC issuer"
+      },
+      {
+        "id": "dev-job",
+        "kind": "workload",
+        "label": "deploy.yml (environment: dev)"
+      },
+      {
+        "id": "prod-job",
+        "kind": "workload",
+        "label": "deploy.yml (environment: prod)"
+      },
+      {
+        "id": "fic-dev",
+        "kind": "federatedCredential",
+        "label": "FIC: environment dev",
+        "properties": {
+          "issuer": "GitHub OIDC issuer",
+          "subject": "repo:contoso/app:environment:dev",
+          "audience": "api://AzureADTokenExchange"
+        }
+      },
+      {
+        "id": "fic-prod",
+        "kind": "federatedCredential",
+        "label": "FIC: environment prod",
+        "properties": {
+          "issuer": "GitHub OIDC issuer",
+          "subject": "repo:contoso/app:environment:prod",
+          "audience": "api://AzureADTokenExchange"
+        }
+      },
+      {
+        "id": "uami",
+        "kind": "userAssignedIdentity",
+        "label": "id-app-deploy",
+        "warning": "Shared by dev and prod: dev's weaker controls now guard prod."
+      },
+      {
+        "id": "rg-dev",
+        "kind": "scope",
+        "label": "rg-app-dev",
+        "properties": {
+          "type": "resourceGroup"
+        }
+      },
+      {
+        "id": "rg-prod",
+        "kind": "scope",
+        "label": "rg-app-prod",
+        "properties": {
+          "type": "resourceGroup"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "dev-job",
+        "target": "uami"
+      },
+      {
+        "id": "e2",
+        "kind": "runsAs",
+        "source": "prod-job",
+        "target": "uami"
+      },
+      {
+        "id": "e3",
+        "kind": "federatesWith",
+        "source": "gh-issuer",
+        "target": "fic-dev",
+        "label": "issues token"
+      },
+      {
+        "id": "e4",
+        "kind": "federatesWith",
+        "source": "gh-issuer",
+        "target": "fic-prod",
+        "label": "issues token"
+      },
+      {
+        "id": "e5",
+        "kind": "hasRoleAssignment",
+        "source": "uami",
+        "target": "rg-dev",
+        "label": "Contributor",
+        "properties": {
+          "role": "Contributor"
+        }
+      },
+      {
+        "id": "e6",
+        "kind": "hasRoleAssignment",
+        "source": "uami",
+        "target": "rg-prod",
+        "label": "Contributor",
+        "properties": {
+          "role": "Contributor"
+        },
+        "warning": "Reachable from the dev workflow."
+      },
+      {
+        "id": "e3-on",
+        "kind": "attachedTo",
+        "source": "fic-dev",
+        "target": "uami",
+        "label": "configured on"
+      },
+      {
+        "id": "e4-on",
+        "kind": "attachedTo",
+        "source": "fic-prod",
+        "target": "uami",
+        "label": "configured on"
+      },
+      {
+        "id": "sub0",
+        "kind": "subjectOf",
+        "source": "dev-job",
+        "target": "fic-dev",
+        "label": "subject match"
+      },
+      {
+        "id": "sub1",
+        "kind": "subjectOf",
+        "source": "prod-job",
+        "target": "fic-prod",
+        "label": "subject match"
+      }
+    ]
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "id": "github-oidc-gcp",
+  "provider": "gcp",
+  "title": "GitHub Actions → Google Cloud (Workload Identity Federation)",
+  "summary": "A workload identity pool provider trusts GitHub's issuer. Tokens from matching repos may impersonate a service account, which holds the actual permissions.",
+  "notes": [
+    "The provider's attribute condition (e.g. assertion.repository_owner == 'contoso') is the outer gate. Always set one; without it any GitHub repo can get a federated token from your pool.",
+    "The service account's IAM policy grants roles/iam.workloadIdentityUser to a principalSet for one repository. That is the inner gate.",
+    "Many Google Cloud services also accept the federated principal directly, without a service account. Direct access removes a hop but is not supported everywhere."
+  ],
+  "docs": [
+    {
+      "title": "Workload Identity Federation with deployment pipelines",
+      "url": "https://cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines"
+    },
+    {
+      "title": "google-github-actions/auth",
+      "url": "https://github.com/google-github-actions/auth"
+    },
+    {
+      "title": "GitHub: configuring OIDC in Google Cloud",
+      "url": "https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-google-cloud-platform"
+    },
+    {
+      "title": "Workload Identity Federation overview",
+      "url": "https://cloud.google.com/iam/docs/workload-identity-federation"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "gh-issuer",
+        "kind": "externalIssuer",
+        "label": "GitHub OIDC issuer",
+        "properties": {
+          "issuer": "https://token.actions.githubusercontent.com"
+        }
+      },
+      {
+        "id": "workflow",
+        "kind": "workload",
+        "label": "deploy.yml (environment: prod)",
+        "description": "GitHub Actions job with permissions: id-token: write"
+      },
+      {
+        "id": "provider",
+        "kind": "identityProvider",
+        "label": "github-pool / github-provider",
+        "properties": {
+          "attribute mapping": "google.subject=assertion.sub, attribute.repository=assertion.repository",
+          "attribute condition": "assertion.repository_owner == 'contoso'"
+        }
+      },
+      {
+        "id": "sa",
+        "kind": "serviceAccount",
+        "label": "deployer@app-prod.iam.gserviceaccount.com"
+      },
+      {
+        "id": "project",
+        "kind": "scope",
+        "label": "app-prod (project)",
+        "properties": {
+          "type": "GCP project"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "workflow",
+        "target": "sa",
+        "label": "google-github-actions/auth"
+      },
+      {
+        "id": "e2",
+        "kind": "federatesWith",
+        "source": "gh-issuer",
+        "target": "provider",
+        "label": "trusted by"
+      },
+      {
+        "id": "e3",
+        "kind": "canAssume",
+        "source": "provider",
+        "target": "sa",
+        "label": "workloadIdentityUser",
+        "properties": {
+          "role": "roles/iam.workloadIdentityUser",
+          "member": "principalSet://iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/github-pool/attribute.repository/contoso/app"
+        }
+      },
+      {
+        "id": "e4",
+        "kind": "hasRoleAssignment",
+        "source": "sa",
+        "target": "project",
+        "label": "Cloud Run Developer",
+        "properties": {
+          "role": "roles/run.developer"
+        }
+      }
+    ]
+  }
+}

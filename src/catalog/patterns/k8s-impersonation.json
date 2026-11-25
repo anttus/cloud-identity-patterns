@@ -1,0 +1,125 @@
+{
+  "id": "k8s-impersonation",
+  "provider": "kubernetes",
+  "title": "Scoped impersonation for elevated access",
+  "summary": "Engineers have read-only access by default. For an incident they run kubectl --as to act as a dedicated operator service account, and only that one, because the impersonate permission is restricted by resourceNames.",
+  "notes": [
+    "The impersonate verb lets a subject act as another user, group or service account. Without resourceNames it lets you become anyone, including system:masters, so treat it like cluster-admin.",
+    "Audit logs record both the real user and the impersonated identity (impersonatedUser), so elevated actions stay attributable.",
+    "Pair with time-bound membership in the group that holds the impersonate binding (e.g. a PIM-style just-in-time group in your IdP).",
+    "Example: kubectl --as=system:serviceaccount:ops:incident-operator rollout restart deploy/api -n payments."
+  ],
+  "docs": [
+    {
+      "title": "User impersonation",
+      "url": "https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation"
+    },
+    {
+      "title": "Auditing",
+      "url": "https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/"
+    },
+    {
+      "title": "RBAC good practices",
+      "url": "https://kubernetes.io/docs/concepts/security/rbac-good-practices/"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "user",
+        "kind": "user",
+        "label": "sre@example.com"
+      },
+      {
+        "id": "group",
+        "kind": "group",
+        "label": "oidc:sre-oncall"
+      },
+      {
+        "id": "crb",
+        "kind": "roleBinding",
+        "label": "ClusterRoleBinding sre-impersonate"
+      },
+      {
+        "id": "imp",
+        "kind": "roleDefinition",
+        "label": "ClusterRole impersonate-operator",
+        "properties": {
+          "rules": "impersonate serviceaccounts, resourceNames: incident-operator"
+        }
+      },
+      {
+        "id": "op",
+        "kind": "k8sServiceAccount",
+        "label": "ops/incident-operator"
+      },
+      {
+        "id": "rb",
+        "kind": "roleBinding",
+        "label": "RoleBinding payments/operator-edit"
+      },
+      {
+        "id": "edit",
+        "kind": "roleDefinition",
+        "label": "ClusterRole edit"
+      },
+      {
+        "id": "ns",
+        "kind": "scope",
+        "label": "namespace: payments",
+        "properties": {
+          "type": "namespace"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "memberOf",
+        "source": "user",
+        "target": "group",
+        "label": "on-call rotation"
+      },
+      {
+        "id": "e2",
+        "kind": "subjectOf",
+        "source": "group",
+        "target": "crb"
+      },
+      {
+        "id": "e3",
+        "kind": "grants",
+        "source": "crb",
+        "target": "imp",
+        "label": "roleRef"
+      },
+      {
+        "id": "e4",
+        "kind": "canAssume",
+        "source": "user",
+        "target": "op",
+        "label": "kubectl --as"
+      },
+      {
+        "id": "e5",
+        "kind": "subjectOf",
+        "source": "op",
+        "target": "rb"
+      },
+      {
+        "id": "e6",
+        "kind": "grants",
+        "source": "rb",
+        "target": "edit",
+        "label": "roleRef"
+      },
+      {
+        "id": "e7",
+        "kind": "scopedTo",
+        "source": "rb",
+        "target": "ns",
+        "label": "only here"
+      }
+    ]
+  }
+}

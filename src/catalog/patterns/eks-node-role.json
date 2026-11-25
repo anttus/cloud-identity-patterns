@@ -1,0 +1,100 @@
+{
+  "id": "eks-node-role",
+  "provider": "aws",
+  "title": "EKS: node IAM role and instance metadata",
+  "summary": "Worker nodes run with an IAM role via an instance profile. It joins the cluster, pulls from ECR and, by default, powers the VPC CNI. Pods can reach the node role's credentials through IMDS unless the hop limit blocks them.",
+  "notes": [
+    "Require IMDSv2 with a hop limit of 1 in the launch template. Containers on the pod network are then one hop too far to read node credentials. Pods using hostNetwork can still reach it.",
+    "Move AmazonEKS_CNI_Policy off the node role onto the aws-node service account (IRSA or Pod Identity), so the node role does less.",
+    "Never add application permissions (S3, DynamoDB, …) to the node role. Use per-service-account roles."
+  ],
+  "docs": [
+    {
+      "title": "Amazon EKS node IAM role",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/create-node-role.html"
+    },
+    {
+      "title": "EKS best practices: restrict access to the instance profile",
+      "url": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
+    },
+    {
+      "title": "Configure the instance metadata service (IMDSv2)",
+      "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "ng",
+        "kind": "workload",
+        "label": "Managed node group (EC2)"
+      },
+      {
+        "id": "role",
+        "kind": "iamRole",
+        "label": "eks-prod-node-role",
+        "properties": {
+          "attached via": "instance profile"
+        }
+      },
+      {
+        "id": "ecr",
+        "kind": "scope",
+        "label": "ECR repositories",
+        "properties": {
+          "type": "ECR"
+        }
+      },
+      {
+        "id": "cluster",
+        "kind": "scope",
+        "label": "eks-prod (cluster)",
+        "properties": {
+          "type": "EKS cluster"
+        }
+      },
+      {
+        "id": "pod",
+        "kind": "workload",
+        "label": "Any pod on the node"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "attachedTo",
+        "source": "role",
+        "target": "ng",
+        "label": "instance profile"
+      },
+      {
+        "id": "e2",
+        "kind": "hasRoleAssignment",
+        "source": "role",
+        "target": "cluster",
+        "label": "AmazonEKSWorkerNodePolicy",
+        "properties": {
+          "role": "AmazonEKSWorkerNodePolicy"
+        }
+      },
+      {
+        "id": "e3",
+        "kind": "hasRoleAssignment",
+        "source": "role",
+        "target": "ecr",
+        "label": "ECR pull",
+        "properties": {
+          "role": "AmazonEC2ContainerRegistryPullOnly"
+        }
+      },
+      {
+        "id": "e4",
+        "kind": "uses",
+        "source": "pod",
+        "target": "role",
+        "label": "via IMDS (hop limit > 1)",
+        "warning": "With IMDS hop limit 2 (or IMDSv1), every pod can read the node role's credentials."
+      }
+    ]
+  }
+}

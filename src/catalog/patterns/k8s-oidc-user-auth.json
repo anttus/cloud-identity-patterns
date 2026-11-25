@@ -1,0 +1,123 @@
+{
+  "id": "k8s-oidc-user-auth",
+  "provider": "kubernetes",
+  "title": "Human sign-in to the API server with an OIDC identity provider",
+  "summary": "The API server trusts ID tokens from your corporate identity provider. The group claim in the token is bound to roles with ordinary RoleBindings, so access follows group membership in the IdP.",
+  "notes": [
+    "Kubernetes has no user objects: users and groups exist only as claims in the token. Configure the issuer with the API server's OIDC flags or an AuthenticationConfiguration file.",
+    "Set a claim prefix (e.g. 'oidc:') so an IdP group can never collide with built-in groups like system:masters.",
+    "Bind groups, not individual users. Joiners and leavers are then handled in the IdP, not in cluster RBAC.",
+    "Removing someone in the IdP doesn't revoke a token they already hold. Keep ID token lifetimes short.",
+    "kubectl gets tokens through a credential plugin such as kubelogin (oidc-login)."
+  ],
+  "docs": [
+    {
+      "title": "Authenticating: OpenID Connect tokens",
+      "url": "https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens"
+    },
+    {
+      "title": "Structured authentication configuration",
+      "url": "https://kubernetes.io/docs/reference/access-authn-authz/authentication/#using-authentication-configuration"
+    },
+    {
+      "title": "kubelogin (kubectl oidc-login plugin)",
+      "url": "https://github.com/int128/kubelogin"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "user",
+        "kind": "user",
+        "label": "alice@example.com"
+      },
+      {
+        "id": "group",
+        "kind": "group",
+        "label": "IdP group: team-payments"
+      },
+      {
+        "id": "idp",
+        "kind": "externalIssuer",
+        "label": "Corporate IdP (OIDC)"
+      },
+      {
+        "id": "rb",
+        "kind": "roleBinding",
+        "label": "RoleBinding payments/team-edit",
+        "properties": {
+          "subject": "Group oidc:team-payments"
+        }
+      },
+      {
+        "id": "edit",
+        "kind": "roleDefinition",
+        "label": "ClusterRole edit"
+      },
+      {
+        "id": "ns",
+        "kind": "scope",
+        "label": "namespace: payments",
+        "properties": {
+          "type": "namespace"
+        }
+      },
+      {
+        "id": "cluster",
+        "kind": "scope",
+        "label": "cluster (kube-apiserver)",
+        "properties": {
+          "type": "cluster"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "memberOf",
+        "source": "user",
+        "target": "group"
+      },
+      {
+        "id": "e2",
+        "kind": "uses",
+        "source": "user",
+        "target": "idp",
+        "label": "kubelogin sign-in"
+      },
+      {
+        "id": "e3",
+        "kind": "federatesWith",
+        "source": "idp",
+        "target": "cluster",
+        "label": "issuer + client ID"
+      },
+      {
+        "id": "e4",
+        "kind": "subjectOf",
+        "source": "group",
+        "target": "rb",
+        "label": "groups claim"
+      },
+      {
+        "id": "e5",
+        "kind": "grants",
+        "source": "rb",
+        "target": "edit",
+        "label": "roleRef"
+      },
+      {
+        "id": "e6",
+        "kind": "scopedTo",
+        "source": "rb",
+        "target": "ns"
+      },
+      {
+        "id": "e7",
+        "kind": "childOf",
+        "source": "ns",
+        "target": "cluster"
+      }
+    ]
+  }
+}

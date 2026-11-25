@@ -1,0 +1,117 @@
+{
+  "id": "eks-irsa",
+  "provider": "aws",
+  "title": "EKS: IAM Roles for Service Accounts (IRSA)",
+  "summary": "The cluster's OIDC issuer signs service account tokens. An IAM role trusts that issuer for one specific service account, and the AWS SDK in the pod exchanges the token for role credentials.",
+  "notes": [
+    "The service account annotation eks.amazonaws.com/role-arn tells the pod identity webhook which role to inject. The trust policy's sub condition is what actually enforces the mapping.",
+    "Pin sub to system:serviceaccount:<namespace>:<name>. A trust policy with only the aud condition lets every service account in the cluster assume the role.",
+    "EKS Pod Identity is the newer alternative. It needs no per-cluster OIDC provider: you create a pod identity association via the EKS API, and the role trusts pods.eks.amazonaws.com."
+  ],
+  "docs": [
+    {
+      "title": "IAM roles for service accounts",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html"
+    },
+    {
+      "title": "EKS Pod Identity",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html"
+    },
+    {
+      "title": "Create an IAM OIDC provider for your cluster",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html"
+    },
+    {
+      "title": "Assign IAM roles to Kubernetes service accounts",
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/associate-service-account-role.html"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "eks-issuer",
+        "kind": "externalIssuer",
+        "label": "EKS OIDC issuer",
+        "properties": {
+          "issuer": "https://oidc.eks.<region>.amazonaws.com/id/<cluster-id>"
+        }
+      },
+      {
+        "id": "idp",
+        "kind": "identityProvider",
+        "label": "IAM OIDC provider (cluster)"
+      },
+      {
+        "id": "pod",
+        "kind": "workload",
+        "label": "Pod: orders-api"
+      },
+      {
+        "id": "ksa",
+        "kind": "k8sServiceAccount",
+        "label": "orders/orders-sa",
+        "properties": {
+          "annotation": "eks.amazonaws.com/role-arn=arn:aws:iam::222222222222:role/orders-api"
+        }
+      },
+      {
+        "id": "role",
+        "kind": "iamRole",
+        "label": "orders-api"
+      },
+      {
+        "id": "secret",
+        "kind": "scope",
+        "label": "secret: orders/db",
+        "properties": {
+          "type": "Secrets Manager secret"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "pod",
+        "target": "ksa",
+        "label": "serviceAccountName"
+      },
+      {
+        "id": "e2",
+        "kind": "runsAs",
+        "source": "ksa",
+        "target": "role",
+        "label": "role-arn annotation"
+      },
+      {
+        "id": "e3",
+        "kind": "federatesWith",
+        "source": "eks-issuer",
+        "target": "idp",
+        "label": "registered as"
+      },
+      {
+        "id": "e4",
+        "kind": "federatesWith",
+        "source": "idp",
+        "target": "role",
+        "label": "trust policy",
+        "properties": {
+          "action": "sts:AssumeRoleWithWebIdentity",
+          "sub (StringEquals)": "system:serviceaccount:orders:orders-sa",
+          "aud (StringEquals)": "sts.amazonaws.com"
+        }
+      },
+      {
+        "id": "e5",
+        "kind": "hasRoleAssignment",
+        "source": "role",
+        "target": "secret",
+        "label": "secretsmanager:GetSecretValue",
+        "properties": {
+          "role": "orders-api-policy"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "id": "gke-cluster-access",
+  "provider": "gcp",
+  "title": "GKE: human access with Google identities, IAM and RBAC",
+  "summary": "Users authenticate with their Google identity (gke-gcloud-auth-plugin). Access is the union of project-level IAM roles and Kubernetes RBAC, and Google Groups can be RBAC subjects.",
+  "notes": [
+    "IAM and RBAC are additive: a request is allowed if EITHER grants it. A broad IAM role such as roles/container.developer at project level reaches every namespace in every cluster in the project.",
+    "For namespace-level access, keep IAM minimal (roles/container.clusterViewer to fetch credentials) and grant in-cluster permissions with RoleBindings.",
+    "Google Groups for RBAC: groups must be nested in gke-security-groups@<your-domain>, and the cluster must have the feature enabled.",
+    "Legacy client certificates and static passwords are disabled by default on modern clusters. Keep it that way."
+  ],
+  "docs": [
+    {
+      "title": "Authorize actions in clusters with RBAC",
+      "url": "https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control"
+    },
+    {
+      "title": "Google Groups for RBAC",
+      "url": "https://cloud.google.com/kubernetes-engine/docs/how-to/google-groups-rbac"
+    },
+    {
+      "title": "Create IAM policies for GKE",
+      "url": "https://cloud.google.com/kubernetes-engine/docs/how-to/iam"
+    },
+    {
+      "title": "Install kubectl and configure cluster access",
+      "url": "https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "user",
+        "kind": "user",
+        "label": "dev@contoso.com (Google identity)"
+      },
+      {
+        "id": "group",
+        "kind": "group",
+        "label": "orders-devs@contoso.com",
+        "properties": {
+          "nested in": "gke-security-groups@contoso.com"
+        }
+      },
+      {
+        "id": "project",
+        "kind": "scope",
+        "label": "app-prod (project)",
+        "properties": {
+          "type": "GCP project"
+        }
+      },
+      {
+        "id": "cluster",
+        "kind": "scope",
+        "label": "gke-prod (cluster)",
+        "properties": {
+          "type": "GKE cluster"
+        }
+      },
+      {
+        "id": "rb",
+        "kind": "roleBinding",
+        "label": "RoleBinding orders/devs-edit"
+      },
+      {
+        "id": "edit",
+        "kind": "roleDefinition",
+        "label": "ClusterRole edit"
+      },
+      {
+        "id": "ns",
+        "kind": "scope",
+        "label": "namespace: orders",
+        "properties": {
+          "type": "namespace"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "memberOf",
+        "source": "user",
+        "target": "group"
+      },
+      {
+        "id": "e2",
+        "kind": "hasRoleAssignment",
+        "source": "user",
+        "target": "project",
+        "label": "Cluster Viewer (get credentials)",
+        "properties": {
+          "role": "roles/container.clusterViewer"
+        }
+      },
+      {
+        "id": "e3",
+        "kind": "subjectOf",
+        "source": "group",
+        "target": "rb",
+        "label": "subject kind: Group"
+      },
+      {
+        "id": "e4",
+        "kind": "grants",
+        "source": "rb",
+        "target": "edit",
+        "label": "roleRef"
+      },
+      {
+        "id": "e5",
+        "kind": "scopedTo",
+        "source": "rb",
+        "target": "ns"
+      },
+      {
+        "id": "e6",
+        "kind": "childOf",
+        "source": "ns",
+        "target": "cluster"
+      },
+      {
+        "id": "e7",
+        "kind": "childOf",
+        "source": "cluster",
+        "target": "project"
+      }
+    ]
+  }
+}

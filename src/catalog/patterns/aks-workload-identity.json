@@ -1,0 +1,142 @@
+{
+  "id": "aks-workload-identity",
+  "provider": "azure",
+  "title": "AKS Workload Identity",
+  "summary": "A pod uses a Kubernetes service account. A federated identity credential on a UAMI trusts that service account's token, so the pod can act as the UAMI and read secrets from Key Vault.",
+  "notes": [
+    "The federated identity credential (FIC) lives on the UAMI. It names the cluster's OIDC issuer, the subject system:serviceaccount:<namespace>:<name> and the audience api://AzureADTokenExchange. All three must match exactly; there are no wildcards.",
+    "The service account carries the annotation azure.workload.identity/client-id. The pod needs the label azure.workload.identity/use: \"true\" so the webhook injects the token and environment variables.",
+    "Entra ID swaps the pod's token for an access token only if a FIC on that identity matches. The annotation just tells the pod which identity to ask for. A UAMI can hold up to 20 FICs, one per cluster and service account that may use it.",
+    "One UAMI per workload (not per cluster) keeps blast radius small. Kubelet and control-plane identities are separate and should not be reused."
+  ],
+  "docs": [
+    {
+      "title": "AKS workload identity overview",
+      "url": "https://learn.microsoft.com/azure/aks/workload-identity-overview"
+    },
+    {
+      "title": "Deploy and configure workload identity on AKS",
+      "url": "https://learn.microsoft.com/azure/aks/workload-identity-deploy-cluster"
+    },
+    {
+      "title": "Federated identity credentials on a user-assigned managed identity",
+      "url": "https://learn.microsoft.com/entra/workload-id/workload-identity-federation-create-trust-user-assigned-managed-identity"
+    },
+    {
+      "title": "Azure Workload Identity project docs",
+      "url": "https://azure.github.io/azure-workload-identity/docs/"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "aks-issuer",
+        "kind": "externalIssuer",
+        "label": "AKS OIDC issuer",
+        "properties": {
+          "issuer": "https://<region>.oic.prod-aks.azure.com/<tenant>/<guid>/"
+        }
+      },
+      {
+        "id": "pod",
+        "kind": "workload",
+        "label": "Pod: orders-api",
+        "properties": {
+          "label": "azure.workload.identity/use=true"
+        }
+      },
+      {
+        "id": "ksa",
+        "kind": "k8sServiceAccount",
+        "label": "orders/orders-sa",
+        "properties": {
+          "annotation": "azure.workload.identity/client-id=<uami-client-id>"
+        }
+      },
+      {
+        "id": "fic",
+        "kind": "federatedCredential",
+        "label": "FIC: orders-sa",
+        "properties": {
+          "issuer": "AKS OIDC issuer",
+          "subject": "system:serviceaccount:orders:orders-sa",
+          "audience": "api://AzureADTokenExchange"
+        }
+      },
+      {
+        "id": "uami",
+        "kind": "userAssignedIdentity",
+        "label": "id-orders-api"
+      },
+      {
+        "id": "kv",
+        "kind": "scope",
+        "label": "kv-orders-prod",
+        "properties": {
+          "type": "Microsoft.KeyVault/vaults"
+        }
+      },
+      {
+        "id": "rg",
+        "kind": "scope",
+        "label": "rg-orders-prod",
+        "properties": {
+          "type": "resourceGroup"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "runsAs",
+        "source": "pod",
+        "target": "ksa",
+        "label": "serviceAccountName"
+      },
+      {
+        "id": "e2",
+        "kind": "runsAs",
+        "source": "ksa",
+        "target": "uami",
+        "label": "client-id annotation"
+      },
+      {
+        "id": "e3",
+        "kind": "federatesWith",
+        "source": "aks-issuer",
+        "target": "fic",
+        "label": "issues token"
+      },
+      {
+        "id": "e4",
+        "kind": "hasRoleAssignment",
+        "source": "uami",
+        "target": "kv",
+        "label": "Key Vault Secrets User",
+        "properties": {
+          "role": "Key Vault Secrets User"
+        }
+      },
+      {
+        "id": "e5",
+        "kind": "childOf",
+        "source": "kv",
+        "target": "rg"
+      },
+      {
+        "id": "e3-on",
+        "kind": "attachedTo",
+        "source": "fic",
+        "target": "uami",
+        "label": "configured on"
+      },
+      {
+        "id": "e3-sub",
+        "kind": "subjectOf",
+        "source": "ksa",
+        "target": "fic",
+        "label": "subject match"
+      }
+    ]
+  }
+}

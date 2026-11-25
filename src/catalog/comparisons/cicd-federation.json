@@ -1,0 +1,61 @@
+{
+  "id": "cicd-federation",
+  "title": "CI/CD federation: Azure vs AWS vs Google Cloud",
+  "topic": "CI/CD",
+  "summary": "All three clouds trust GitHub's OIDC token instead of a stored secret. The idea is the same, but the place where the repo/environment check lives differs.",
+  "patterns": ["github-oidc-federation", "github-oidc-aws", "github-oidc-gcp"],
+  "dimensions": [
+    {
+      "label": "Trust object",
+      "values": [
+        "Federated identity credential on a UAMI or app registration",
+        "IAM OIDC provider + role trust policy",
+        "Workload identity pool + provider"
+      ]
+    },
+    {
+      "label": "Where the subject is checked",
+      "values": [
+        "FIC subject (exact match)",
+        "Trust policy condition on token.actions.githubusercontent.com:sub",
+        "Provider attribute condition + principalSet on the SA binding"
+      ]
+    },
+    {
+      "label": "Audience",
+      "values": [
+        "api://AzureADTokenExchange",
+        "sts.amazonaws.com",
+        "Provider resource name (default)"
+      ]
+    },
+    {
+      "label": "Identity that gets the permissions",
+      "values": [
+        "Managed identity / service principal",
+        "IAM role",
+        "Service account (or the federated principal directly)"
+      ]
+    },
+    {
+      "label": "Token exchange",
+      "values": [
+        "Entra token endpoint (client assertion)",
+        "sts:AssumeRoleWithWebIdentity",
+        "STS token exchange, then SA impersonation"
+      ]
+    },
+    {
+      "label": "GitHub action",
+      "values": [
+        "azure/login",
+        "aws-actions/configure-aws-credentials",
+        "google-github-actions/auth"
+      ]
+    }
+  ],
+  "notes": [
+    "The same failure mode exists everywhere: a subject check that is too broad, or missing. See the 'Broad federated subject' warning.",
+    "Only GCP has a two-level gate (pool condition, then SA binding). On Azure and AWS the single subject check carries all the weight."
+  ]
+}
