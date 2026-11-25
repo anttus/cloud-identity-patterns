@@ -1,13 +1,14 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { catalog } from "./catalog";
 import { ComparisonView } from "./components/ComparisonView";
 import { ComparisonPanel, PatternPanel } from "./components/DetailsPanel";
 import { GraphView, type Selection } from "./components/GraphView";
 import { PanelToggle } from "./components/PanelToggle";
+import { ResizeHandle } from "./components/ResizeHandle";
 import { Sidebar } from "./components/Sidebar";
 import { parseHash, type View, viewToHash } from "./domain/routing";
 import type { Pattern } from "./domain/schema";
-import { usePersistentFlag } from "./usePersistentFlag";
+import { usePersistentFlag, usePersistentNumber } from "./usePersistentFlag";
 
 const { patterns, comparisons } = catalog;
 const findPattern = (id?: string) => patterns.find((p) => p.id === id);
@@ -18,6 +19,15 @@ const defaultView = (): View | null => {
   return comparisons[0] ? { type: "comparison", id: first.id } : { type: "pattern", id: first.id };
 };
 
+/** Panel width limits in px. The canvas always keeps at least MIN_CANVAS. */
+const NAV = { initial: 240, min: 180, max: 480 };
+const DETAILS = { initial: 340, min: 260, max: 640 };
+const MIN_CANVAS = 320;
+
+/** Upper bound for one panel, leaving room for the other panel and the canvas. */
+const maxWidth = (limit: number, min: number, other: number) =>
+  Math.max(min, Math.min(limit, window.innerWidth - other - MIN_CANVAS));
+
 const currentView = () => parseHash(window.location.hash, catalog) ?? defaultView();
 
 export const App = () => {
@@ -26,6 +36,13 @@ export const App = () => {
   const [selection, setSelection] = useState<Selection | null>(null);
   const [navOpen, setNavOpen] = usePersistentFlag("panel.nav", true);
   const [detailsOpen, setDetailsOpen] = usePersistentFlag("panel.details", true);
+  const [navWidth, setNavWidth, saveNavWidth] = usePersistentNumber("panel.nav.width", NAV.initial);
+  const [detailsWidth, setDetailsWidth, saveDetailsWidth] = usePersistentNumber(
+    "panel.details.width",
+    DETAILS.initial,
+  );
+  // Bumped when a resize ends, so diagrams re-fit once instead of on every drag frame.
+  const [fitCount, setFitCount] = useState(0);
 
   useEffect(() => {
     const onHashChange = () => {
@@ -41,7 +58,11 @@ export const App = () => {
   };
 
   // Changing the canvas width should re-fit the diagrams, so it's part of their key.
-  const sizeKey = `${navOpen}-${detailsOpen}`;
+  const sizeKey = `${navOpen}-${detailsOpen}-${fitCount}`;
+  const commitWidth = (save: (w: number) => void) => (w: number) => {
+    save(w);
+    setFitCount((n) => n + 1);
+  };
 
   const resolve = (): { content: ReactNode; panel: ReactNode } | null => {
     if (view?.type === "pattern") {
@@ -95,9 +116,38 @@ export const App = () => {
   ];
 
   return (
-    <div className={layoutClasses.filter(Boolean).join(" ")}>
+    <div
+      className={layoutClasses.filter(Boolean).join(" ")}
+      style={{ "--nav-w": `${navWidth}px`, "--details-w": `${detailsWidth}px` } as CSSProperties}
+    >
       <Sidebar patterns={patterns} comparisons={comparisons} view={view} onNavigate={navigate} />
       <main className={resolved ? "canvas" : "canvas empty"}>
+        {navOpen && (
+          <ResizeHandle
+            side="left"
+            width={navWidth}
+            min={NAV.min}
+            max={maxWidth(NAV.max, NAV.min, detailsOpen ? detailsWidth : 0)}
+            defaultWidth={NAV.initial}
+            controls="nav-panel"
+            label="pattern list"
+            onResize={setNavWidth}
+            onCommit={commitWidth(saveNavWidth)}
+          />
+        )}
+        {resolved?.panel && detailsOpen && (
+          <ResizeHandle
+            side="right"
+            width={detailsWidth}
+            min={DETAILS.min}
+            max={maxWidth(DETAILS.max, DETAILS.min, navOpen ? navWidth : 0)}
+            defaultWidth={DETAILS.initial}
+            controls="details-panel"
+            label="details"
+            onResize={setDetailsWidth}
+            onCommit={commitWidth(saveDetailsWidth)}
+          />
+        )}
         <PanelToggle
           side="left"
           open={navOpen}
