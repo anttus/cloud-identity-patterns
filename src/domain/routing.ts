@@ -1,17 +1,23 @@
 import type { Catalog } from "./catalog";
 
-export type View = { type: "pattern"; id: string } | { type: "comparison"; id: string };
+export type View =
+  | { type: "home" }
+  | { type: "pattern"; id: string }
+  | { type: "comparison"; id: string };
 
 const prefixes = { pattern: "#/pattern/", comparison: "#/compare/" } as const;
+export const HOME_HASH = "#/";
 
 export const viewToHash = (view: View): string =>
-  `${prefixes[view.type]}${encodeURIComponent(view.id)}`;
+  view.type === "home" ? HOME_HASH : `${prefixes[view.type]}${encodeURIComponent(view.id)}`;
 
 /**
  * Turns `location.hash` back into a View. The hash is user-controlled input,
  * so anything malformed or unknown yields null (the caller then shows a default).
  */
 export const parseHash = (hash: string, catalog: Catalog): View | null => {
+  // No hash at all (first visit), a bare "#" or "#/" is the home page.
+  if (hash === "" || hash === "#" || hash === HOME_HASH) return { type: "home" };
   for (const type of ["pattern", "comparison"] as const) {
     const prefix = prefixes[type];
     if (!hash.startsWith(prefix)) continue;

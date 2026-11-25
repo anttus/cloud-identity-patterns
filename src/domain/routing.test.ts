@@ -8,8 +8,9 @@ const catalog = {
 } as unknown as Catalog;
 
 describe("parseHash", () => {
-  it("round-trips pattern and comparison views", () => {
+  it("round-trips home, pattern and comparison views", () => {
     for (const view of [
+      { type: "home" },
       { type: "pattern", id: "uami-vs-sami" },
       { type: "comparison", id: "cicd-federation" },
     ] as const) {
@@ -27,7 +28,12 @@ describe("parseHash", () => {
 
   it("rejects malformed encoding and junk", () => {
     expect(parseHash("#/pattern/%E0%A4%A", catalog)).toBeNull();
-    expect(parseHash("", catalog)).toBeNull();
     expect(parseHash("#/whatever", catalog)).toBeNull();
+  });
+
+  it("treats an empty or bare hash as the home page", () => {
+    for (const hash of ["", "#", "#/"]) {
+      expect(parseHash(hash, catalog)).toEqual({ type: "home" });
+    }
   });
 });

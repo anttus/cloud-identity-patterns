@@ -1,5 +1,5 @@
 import { providerLabels } from "../domain/catalog";
-import type { View } from "../domain/routing";
+import { HOME_HASH, type View } from "../domain/routing";
 import type { Comparison, Pattern, Provider } from "../domain/schema";
 import { SectionIcon, topicIcon } from "./SectionIcon";
 
@@ -8,7 +8,7 @@ const providerOrder: Provider[] = ["azure", "aws", "gcp", "kubernetes", "generic
 type Props = {
   patterns: Pattern[];
   comparisons: Comparison[];
-  view: View | null;
+  view: View;
   onNavigate: (view: View) => void;
 };
 
@@ -29,7 +29,8 @@ const Item = ({
 );
 
 export const Sidebar = ({ patterns, comparisons, view, onNavigate }: Props) => {
-  const isActive = (type: View["type"], id: string) => view?.type === type && view.id === id;
+  const isActive = (type: "pattern" | "comparison", id: string) =>
+    view.type === type && view.id === id;
   const good = patterns.filter((p) => p.type === "pattern");
   const warnings = patterns.filter((p) => p.type === "warning");
   // Kubernetes first: it's the main comparison area; the rest alphabetically.
@@ -40,8 +41,10 @@ export const Sidebar = ({ patterns, comparisons, view, onNavigate }: Props) => {
   return (
     <nav id="nav-panel" className="sidebar" aria-label="Patterns">
       <h1 className="app-title">
-        <img src="/favicon.svg" alt="" width="24" height="24" />
-        Cloud Identity Patterns
+        <a href={HOME_HASH} aria-current={view.type === "home" ? "page" : undefined}>
+          <img src="/favicon.svg" alt="" width="24" height="24" />
+          Cloud Identity Patterns
+        </a>
       </h1>
 
       <section className="nav-group" aria-labelledby="nav-compare">

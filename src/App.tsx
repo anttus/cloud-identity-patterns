@@ -3,6 +3,7 @@ import { catalog } from "./catalog";
 import { ComparisonView } from "./components/ComparisonView";
 import { ComparisonPanel, PatternPanel } from "./components/DetailsPanel";
 import { GraphView, type Selection } from "./components/GraphView";
+import { Home } from "./components/Home";
 import { PanelToggle } from "./components/PanelToggle";
 import { ResizeHandle } from "./components/ResizeHandle";
 import { Sidebar } from "./components/Sidebar";
@@ -13,12 +14,6 @@ import { usePersistentFlag, usePersistentNumber } from "./usePersistentFlag";
 const { patterns, comparisons } = catalog;
 const findPattern = (id?: string) => patterns.find((p) => p.id === id);
 
-const defaultView = (): View | null => {
-  const first = comparisons[0] ?? patterns[0];
-  if (!first) return null;
-  return comparisons[0] ? { type: "comparison", id: first.id } : { type: "pattern", id: first.id };
-};
-
 /** Panel width limits in px. The canvas always keeps at least MIN_CANVAS. */
 const NAV = { initial: 240, min: 180, max: 480 };
 const DETAILS = { initial: 340, min: 260, max: 640 };
@@ -28,11 +23,12 @@ const MIN_CANVAS = 320;
 const maxWidth = (limit: number, min: number, other: number) =>
   Math.max(min, Math.min(limit, window.innerWidth - other - MIN_CANVAS));
 
-const currentView = () => parseHash(window.location.hash, catalog) ?? defaultView();
+/** Unknown or malformed hashes fall back to the home page. */
+const currentView = (): View => parseHash(window.location.hash, catalog) ?? { type: "home" };
 
 export const App = () => {
   // The URL hash is the source of truth, so links, bookmarks and back/forward all work.
-  const [view, setView] = useState<View | null>(currentView);
+  const [view, setView] = useState<View>(currentView);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [navOpen, setNavOpen] = usePersistentFlag("panel.nav", true);
   const [detailsOpen, setDetailsOpen] = usePersistentFlag("panel.details", true);
@@ -65,7 +61,13 @@ export const App = () => {
   };
 
   const resolve = (): { content: ReactNode; panel: ReactNode } | null => {
-    if (view?.type === "pattern") {
+    if (view.type === "home") {
+      return {
+        content: <Home patterns={patterns} comparisons={comparisons} onNavigate={navigate} />,
+        panel: null,
+      };
+    }
+    if (view.type === "pattern") {
       const pattern = findPattern(view.id);
       if (!pattern) return null;
       return {
@@ -86,7 +88,7 @@ export const App = () => {
         ),
       };
     }
-    if (view?.type === "comparison") {
+    if (view.type === "comparison") {
       const comparison = comparisons.find((c) => c.id === view.id);
       if (!comparison) return null;
       const columns = comparison.patterns
@@ -113,6 +115,8 @@ export const App = () => {
     "layout",
     !navOpen && "nav-collapsed",
     !detailsOpen && "details-collapsed",
+    // Views without a details panel (the home page) give its column to the canvas.
+    !resolved?.panel && "no-details",
   ];
 
   return (
