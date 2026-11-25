@@ -12,19 +12,19 @@
   "docs": [
     {
       "title": "Authorize actions in clusters with RBAC",
-      "url": "https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control"
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control"
     },
     {
       "title": "Google Groups for RBAC",
-      "url": "https://cloud.google.com/kubernetes-engine/docs/how-to/google-groups-rbac"
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/how-to/google-groups-rbac"
     },
     {
       "title": "Create IAM policies for GKE",
-      "url": "https://cloud.google.com/kubernetes-engine/docs/how-to/iam"
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/how-to/iam"
     },
     {
       "title": "Install kubectl and configure cluster access",
-      "url": "https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl"
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl"
     }
   ],
   "graph": {

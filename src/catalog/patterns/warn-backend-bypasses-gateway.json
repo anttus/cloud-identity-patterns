@@ -1,0 +1,131 @@
+{
+  "id": "warn-backend-bypasses-gateway",
+  "type": "warning",
+  "provider": "gcp",
+  "fixedBy": "gcp-api-gateway",
+  "title": "Backend reachable around the gateway",
+  "summary": "The gateway checks every caller's token, but the Cloud Run service behind it also allows unauthenticated calls. Anyone who finds its run.app URL can skip the gateway and every check it makes.",
+  "notes": [
+    "Granting roles/run.invoker to allUsers (\"Allow unauthenticated invocations\") makes the service public. The gateway's JWT checks then only protect the gateway's own URL, not the service.",
+    "run.app URLs are easy to find: they appear in deployment logs, browser developer tools, error messages and certificate transparency logs, and they follow a predictable pattern.",
+    "Fix: remove allUsers and grant roles/run.invoker only to the gateway's backend service account. IAM, not the URL being hard to guess, is what ties the backend to the gateway.",
+    "The same mistake exists elsewhere: an App Service behind API Management without access restrictions, or a Lambda function URL with auth type NONE next to API Gateway. In each case, lock the backend to the gateway's identity or network."
+  ],
+  "docs": [
+    {
+      "title": "Cloud Run: allowing public (unauthenticated) access",
+      "url": "https://docs.cloud.google.com/run/docs/authenticating/public"
+    },
+    {
+      "title": "Authenticate between services with a service account (API Gateway)",
+      "url": "https://docs.cloud.google.com/api-gateway/docs/authenticate-service-account"
+    },
+    {
+      "title": "Cloud Run access control with IAM",
+      "url": "https://docs.cloud.google.com/run/docs/securing/managing-access"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "client",
+        "kind": "workload",
+        "label": "Client app"
+      },
+      {
+        "id": "anyone",
+        "kind": "user",
+        "label": "Anyone on the internet"
+      },
+      {
+        "id": "idp",
+        "kind": "identityProvider",
+        "label": "Firebase Auth / OIDC"
+      },
+      {
+        "id": "gw",
+        "kind": "workload",
+        "label": "API Gateway: orders-gw",
+        "properties": {
+          "checks": "issuer, audience, expiry"
+        }
+      },
+      {
+        "id": "gw-sa",
+        "kind": "serviceAccount",
+        "label": "orders-gw@<project>.iam"
+      },
+      {
+        "id": "gw-binding",
+        "kind": "roleBinding",
+        "label": "run.invoker: gateway SA"
+      },
+      {
+        "id": "public-binding",
+        "kind": "roleBinding",
+        "label": "run.invoker: allUsers",
+        "warning": "Makes the service public. Requests with no token at all reach the backend."
+      },
+      {
+        "id": "run",
+        "kind": "scope",
+        "label": "Cloud Run: orders-api",
+        "properties": {
+          "url": "https://orders-api-<hash>-<region>.a.run.app",
+          "authentication": "allow unauthenticated"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "uses",
+        "source": "client",
+        "target": "gw",
+        "label": "Bearer JWT"
+      },
+      {
+        "id": "e2",
+        "kind": "federatesWith",
+        "source": "idp",
+        "target": "gw",
+        "label": "issuer + audience"
+      },
+      {
+        "id": "e3",
+        "kind": "runsAs",
+        "source": "gw",
+        "target": "gw-sa",
+        "label": "ID token for backend"
+      },
+      {
+        "id": "e4",
+        "kind": "subjectOf",
+        "source": "gw-sa",
+        "target": "gw-binding",
+        "label": "member"
+      },
+      {
+        "id": "e5",
+        "kind": "scopedTo",
+        "source": "gw-binding",
+        "target": "run"
+      },
+      {
+        "id": "e6",
+        "kind": "subjectOf",
+        "source": "anyone",
+        "target": "public-binding",
+        "label": "allUsers"
+      },
+      {
+        "id": "e7",
+        "kind": "scopedTo",
+        "source": "public-binding",
+        "target": "run",
+        "label": "no token needed",
+        "warning": "This path skips the gateway and all of its checks."
+      }
+    ]
+  }
+}

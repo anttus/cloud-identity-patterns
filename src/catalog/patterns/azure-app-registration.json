@@ -1,0 +1,147 @@
+{
+  "id": "azure-app-registration",
+  "provider": "azure",
+  "basics": true,
+  "order": 3,
+  "title": "App registration and service principal",
+  "summary": "An app registration is the global definition of an application in its home tenant. A service principal (an 'enterprise application') is that app's identity in each tenant that uses it, and it's the service principal that receives permissions.",
+  "notes": [
+    "One app registration, many service principals: a multi-tenant app gets a service principal in every tenant that consents to it.",
+    "Credentials belong to the app registration. Prefer federated credentials or certificates over client secrets, which are long-lived and easy to leak.",
+    "Two kinds of permission land on the service principal: API permissions (e.g. Microsoft Graph, delegated or application, often needing admin consent) and Azure RBAC role assignments on resources.",
+    "Owners of an app registration can add credentials to it, and so can sign in as it. Treat ownership of a privileged app as privileged access.",
+    "Code running in Azure usually doesn't need an app registration at all: a managed identity is a service principal without any credential to manage."
+  ],
+  "docs": [
+    {
+      "title": "Application and service principal objects",
+      "url": "https://learn.microsoft.com/entra/identity-platform/app-objects-and-service-principals"
+    },
+    {
+      "title": "Register an application",
+      "url": "https://learn.microsoft.com/entra/identity-platform/quickstart-register-app"
+    },
+    {
+      "title": "Permissions and consent overview",
+      "url": "https://learn.microsoft.com/entra/identity-platform/permissions-consent-overview"
+    },
+    {
+      "title": "Certificate credentials",
+      "url": "https://learn.microsoft.com/entra/identity-platform/certificate-credentials"
+    },
+    {
+      "title": "Workload identity federation",
+      "url": "https://learn.microsoft.com/entra/workload-id/workload-identity-federation"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "owner",
+        "kind": "user",
+        "label": "alice@contoso.com (owner)"
+      },
+      {
+        "id": "secret",
+        "kind": "credential",
+        "label": "Client secret (expires in 6 months)"
+      },
+      {
+        "id": "fic",
+        "kind": "federatedCredential",
+        "label": "FIC: GitHub environment prod"
+      },
+      {
+        "id": "app",
+        "kind": "appRegistration",
+        "label": "App registration: orders-api",
+        "properties": {
+          "homeTenant": "contoso",
+          "signInAudience": "multi-tenant"
+        }
+      },
+      {
+        "id": "sp",
+        "kind": "servicePrincipal",
+        "label": "Enterprise app: orders-api (contoso)"
+      },
+      {
+        "id": "sp2",
+        "kind": "servicePrincipal",
+        "label": "Enterprise app: orders-api (fabrikam)"
+      },
+      {
+        "id": "graph",
+        "kind": "scope",
+        "label": "Microsoft Graph: User.Read.All",
+        "properties": {
+          "type": "API permission (application)",
+          "consent": "admin"
+        }
+      },
+      {
+        "id": "rg",
+        "kind": "scope",
+        "label": "rg-orders",
+        "properties": {
+          "type": "resourceGroup"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "owns",
+        "source": "owner",
+        "target": "app",
+        "label": "can add credentials"
+      },
+      {
+        "id": "e2",
+        "kind": "attachedTo",
+        "source": "secret",
+        "target": "app"
+      },
+      {
+        "id": "e3",
+        "kind": "attachedTo",
+        "source": "fic",
+        "target": "app"
+      },
+      {
+        "id": "e4",
+        "kind": "instanceOf",
+        "source": "sp",
+        "target": "app",
+        "label": "home tenant"
+      },
+      {
+        "id": "e5",
+        "kind": "instanceOf",
+        "source": "sp2",
+        "target": "app",
+        "label": "after consent"
+      },
+      {
+        "id": "e6",
+        "kind": "hasRoleAssignment",
+        "source": "sp",
+        "target": "graph",
+        "label": "API permission",
+        "properties": {
+          "role": "User.Read.All (application)"
+        }
+      },
+      {
+        "id": "e7",
+        "kind": "hasRoleAssignment",
+        "source": "sp",
+        "target": "rg",
+        "label": "Contributor",
+        "properties": {
+          "role": "Contributor"
+        }
+      }
+    ]
+  }
+}

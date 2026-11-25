@@ -35,7 +35,7 @@ export const edgeVisuals: Record<EdgeKind, EdgeVisual> = {
   runsAs: { label: "Authenticates as", color: "var(--c-workload)" },
   uses: { label: "Uses / reads", color: "var(--c-muted)" },
   subjectOf: { label: "Subject of binding", color: "var(--c-workload)" },
-  grants: { label: "Binding grants role", color: "var(--c-grant)" },
+  grants: { label: "Grants the permissions of", color: "var(--c-grant)" },
   scopedTo: { label: "Limited to scope", color: "var(--c-scope)", dashed: true },
   childOf: { label: "Contained in / inherits from", color: "var(--c-muted)", dashed: true },
   instanceOf: { label: "Instance of", color: "var(--c-app)" },

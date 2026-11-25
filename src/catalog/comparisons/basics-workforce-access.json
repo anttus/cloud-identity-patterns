@@ -1,0 +1,50 @@
+{
+  "id": "basics-workforce-access",
+  "title": "Workforce access: Azure RBAC vs IAM Identity Center",
+  "topic": "Basics",
+  "summary": "How people get access to cloud resources. Both bind a group to a set of permissions at a place, but Azure binds directly at any scope in a tree, while AWS binds per account and provisions a role in each one.",
+  "patterns": ["azure-rbac-basics", "aws-identity-center"],
+  "dimensions": [
+    {
+      "label": "Sign-in",
+      "values": [
+        "Entra ID (the tenant itself)",
+        "Identity Center, often federated with a corporate IdP"
+      ]
+    },
+    {
+      "label": "Permission set",
+      "values": [
+        "Role definition (built-in or custom)",
+        "Permission set (policies + session length)"
+      ]
+    },
+    { "label": "Binding", "values": ["Role assignment", "Account assignment"] },
+    {
+      "label": "Where it applies",
+      "values": [
+        "Any scope: management group, subscription, resource group, resource",
+        "Whole AWS accounts"
+      ]
+    },
+    {
+      "label": "Inheritance",
+      "values": ["Flows down the scope tree", "None between accounts; one assignment per account"]
+    },
+    {
+      "label": "What the person gets",
+      "values": [
+        "Their own token; no separate identity",
+        "A session as a provisioned IAM role (AWSReservedSSO_…)"
+      ]
+    },
+    {
+      "label": "Just-in-time access",
+      "values": ["PIM eligible assignments", "Not built in; temporary assignments or partner tools"]
+    }
+  ],
+  "notes": [
+    "Both work best with groups from the corporate IdP: joiners and leavers then only change the IdP group.",
+    "Azure can grant at resource-group or resource level directly. In AWS, finer-grained limits go into the permission set's policies or into separate accounts."
+  ]
+}

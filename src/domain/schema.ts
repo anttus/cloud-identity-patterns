@@ -31,9 +31,9 @@ export const NodeKind = z.enum([
   /** IdP registered inside a cloud (AWS IAM OIDC provider, GCP workload identity pool provider). */
   "identityProvider",
   "k8sServiceAccount",
-  /** Binds subjects to a role (Kubernetes RoleBinding, EKS access entry or pod identity association). */
+  /** Binds subjects to a role (Azure role assignment, AWS account assignment, Kubernetes RoleBinding, EKS access entry). */
   "roleBinding",
-  /** A named set of permissions (Kubernetes Role / ClusterRole, EKS access policy). */
+  /** A named set of permissions (Azure role definition, AWS policy or permission set, Kubernetes Role / ClusterRole). */
   "roleDefinition",
   /**
    * Trust record on an identity: accepts tokens from one issuer for one subject and
@@ -66,7 +66,7 @@ export const EdgeKind = z.enum([
   "uses",
   /** Principal is a subject of a binding. */
   "subjectOf",
-  /** Binding references a role definition. */
+  /** Binding (or IAM role / group) gets its permissions from a role definition or policy. */
   "grants",
   /** Binding or definition is limited to this scope. */
   "scopedTo",
@@ -123,6 +123,10 @@ export const Pattern = z.object({
   summary: z.string(),
   notes: z.array(z.string()).default([]),
   docs: z.array(DocLink).default([]),
+  /** A high-level overview of a platform's identity building blocks; listed first. */
+  basics: z.boolean().default(false),
+  /** Optional position among its siblings (lower first), e.g. to read basics as a learning path. */
+  order: z.number().int().min(0).max(1000).optional(),
   /** For a warning: id of the pattern that shows the safe version. */
   fixedBy: Id.optional(),
   graph: IdentityGraph,

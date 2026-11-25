@@ -1,0 +1,153 @@
+{
+  "id": "k8s-istio-ingress-auth",
+  "provider": "kubernetes",
+  "title": "Istio ingress gateway with JWT",
+  "summary": "The Istio ingress gateway checks the caller's JWT and turns away requests without one. It then calls the backend over mTLS as its own service account, and the backend only accepts that identity.",
+  "notes": [
+    "RequestAuthentication tells the gateway's Envoy which issuers and key sets to trust. It rejects a request with an invalid token, but lets through a request with no token at all.",
+    "That's why it needs a partner: an AuthorizationPolicy on the gateway that requires a request principal (any, or a specific issuer and subject). Only together do they deny unauthenticated requests.",
+    "Inside the mesh, the gateway presents its SPIFFE identity over mTLS (spiffe://cluster.local/ns/istio-system/sa/<gateway-sa>). An AuthorizationPolicy on the backend allows only that principal, and PeerAuthentication in STRICT mode refuses plaintext calls that skip the mesh.",
+    "By default the gateway removes the original token after checking it. Set forwardOriginalToken, or outputPayloadToHeader to pass the checked claims, if the backend needs to know the user."
+  ],
+  "docs": [
+    {
+      "title": "Istio RequestAuthentication reference",
+      "url": "https://istio.io/latest/docs/reference/config/security/request_authentication/"
+    },
+    {
+      "title": "Istio AuthorizationPolicy reference",
+      "url": "https://istio.io/latest/docs/reference/config/security/authorization-policy/"
+    },
+    {
+      "title": "Istio task: authorization with JWT",
+      "url": "https://istio.io/latest/docs/tasks/security/authorization/authz-jwt/"
+    },
+    {
+      "title": "Istio PeerAuthentication reference",
+      "url": "https://istio.io/latest/docs/reference/config/security/peer_authentication/"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "client",
+        "kind": "workload",
+        "label": "Client app"
+      },
+      {
+        "id": "idp",
+        "kind": "identityProvider",
+        "label": "OIDC provider",
+        "description": "Entra ID, Keycloak, Auth0 or any issuer with a JWKS endpoint."
+      },
+      {
+        "id": "reqauth",
+        "kind": "federatedCredential",
+        "label": "RequestAuthentication",
+        "properties": {
+          "issuer": "https://login.example.com/",
+          "jwksUri": "https://login.example.com/.well-known/jwks.json",
+          "audiences": "orders-api"
+        }
+      },
+      {
+        "id": "require-jwt",
+        "kind": "roleBinding",
+        "label": "AuthorizationPolicy: require-jwt",
+        "properties": {
+          "requestPrincipals": "[\"*\"]",
+          "action": "ALLOW"
+        }
+      },
+      {
+        "id": "gateway",
+        "kind": "workload",
+        "label": "istio-ingressgateway"
+      },
+      {
+        "id": "gw-sa",
+        "kind": "k8sServiceAccount",
+        "label": "Gateway service account",
+        "description": "istio-system/istio-ingressgateway-service-account, the default name in the Istio Helm chart.",
+        "properties": {
+          "SPIFFE ID": "spiffe://cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"
+        }
+      },
+      {
+        "id": "allow-gw",
+        "kind": "roleBinding",
+        "label": "AuthorizationPolicy: from-gateway",
+        "properties": {
+          "principals": "cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account",
+          "action": "ALLOW"
+        }
+      },
+      {
+        "id": "backend",
+        "kind": "workload",
+        "label": "Pod: orders-api",
+        "properties": {
+          "PeerAuthentication": "STRICT"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "uses",
+        "source": "client",
+        "target": "idp",
+        "label": "signs in"
+      },
+      {
+        "id": "e2",
+        "kind": "federatesWith",
+        "source": "idp",
+        "target": "reqauth",
+        "label": "issuer + JWKS"
+      },
+      {
+        "id": "e3",
+        "kind": "attachedTo",
+        "source": "reqauth",
+        "target": "gateway",
+        "label": "validates tokens"
+      },
+      {
+        "id": "e4",
+        "kind": "attachedTo",
+        "source": "require-jwt",
+        "target": "gateway",
+        "label": "denies no token"
+      },
+      {
+        "id": "e5",
+        "kind": "uses",
+        "source": "client",
+        "target": "gateway",
+        "label": "Bearer JWT"
+      },
+      {
+        "id": "e6",
+        "kind": "runsAs",
+        "source": "gateway",
+        "target": "gw-sa",
+        "label": "mTLS identity"
+      },
+      {
+        "id": "e7",
+        "kind": "subjectOf",
+        "source": "gw-sa",
+        "target": "allow-gw",
+        "label": "allowed principal"
+      },
+      {
+        "id": "e8",
+        "kind": "scopedTo",
+        "source": "allow-gw",
+        "target": "backend",
+        "label": "selector app=orders-api"
+      }
+    ]
+  }
+}

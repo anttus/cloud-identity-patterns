@@ -1,0 +1,188 @@
+{
+  "id": "azure-rbac-basics",
+  "provider": "azure",
+  "basics": true,
+  "order": 2,
+  "title": "Azure RBAC: role assignments and scope inheritance",
+  "summary": "A role assignment answers three questions: who (a principal), what (a role definition) and where (a scope). Assignments flow down the scope tree, from management group to subscription to resource group to resource.",
+  "notes": [
+    "Scopes nest: management group > subscription > resource group > resource. An assignment at one level applies to everything below it.",
+    "Assign roles to groups, not to individuals. Access then follows group membership, and reviews cover one list instead of many assignments.",
+    "Control plane and data plane are separate. Contributor can manage a storage account but can't read its blobs; that needs a data role such as Storage Blob Data Reader.",
+    "Access is the union of all assignments that apply; there is no 'least permissive wins'. Deny assignments exist, but only managed features such as deployment stacks create them.",
+    "Entra roles (e.g. User Administrator) are a different system: they control the directory, not Azure resources. Use PIM for privileged roles in both."
+  ],
+  "docs": [
+    {
+      "title": "What is Azure RBAC?",
+      "url": "https://learn.microsoft.com/azure/role-based-access-control/overview"
+    },
+    {
+      "title": "Understand scope",
+      "url": "https://learn.microsoft.com/azure/role-based-access-control/scope-overview"
+    },
+    {
+      "title": "Azure built-in roles",
+      "url": "https://learn.microsoft.com/azure/role-based-access-control/built-in-roles"
+    },
+    {
+      "title": "Azure roles, Entra roles and classic admin roles",
+      "url": "https://learn.microsoft.com/azure/role-based-access-control/rbac-and-directory-admin-roles"
+    },
+    {
+      "title": "Azure RBAC best practices",
+      "url": "https://learn.microsoft.com/azure/role-based-access-control/best-practices"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "alice",
+        "kind": "user",
+        "label": "alice@contoso.com"
+      },
+      {
+        "id": "devs",
+        "kind": "group",
+        "label": "grp-orders-devs"
+      },
+      {
+        "id": "auditors",
+        "kind": "group",
+        "label": "grp-auditors"
+      },
+      {
+        "id": "ra1",
+        "kind": "roleBinding",
+        "label": "Role assignment: devs",
+        "description": "Who: grp-orders-devs. What: Contributor. Where: rg-orders."
+      },
+      {
+        "id": "ra2",
+        "kind": "roleBinding",
+        "label": "Role assignment: auditors",
+        "description": "Who: grp-auditors. What: Reader. Where: management group Platform."
+      },
+      {
+        "id": "contrib",
+        "kind": "roleDefinition",
+        "label": "Contributor (built-in)",
+        "properties": {
+          "actions": "*",
+          "notActions": "role assignments, …"
+        }
+      },
+      {
+        "id": "reader",
+        "kind": "roleDefinition",
+        "label": "Reader (built-in)",
+        "properties": {
+          "actions": "*/read"
+        }
+      },
+      {
+        "id": "mg",
+        "kind": "scope",
+        "label": "Management group: Platform",
+        "properties": {
+          "type": "managementGroup"
+        }
+      },
+      {
+        "id": "sub",
+        "kind": "scope",
+        "label": "Subscription: prod",
+        "properties": {
+          "type": "subscription"
+        }
+      },
+      {
+        "id": "rg",
+        "kind": "scope",
+        "label": "rg-orders",
+        "properties": {
+          "type": "resourceGroup"
+        }
+      },
+      {
+        "id": "st",
+        "kind": "scope",
+        "label": "Storage account: stordersprod",
+        "properties": {
+          "type": "Microsoft.Storage/storageAccounts"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "memberOf",
+        "source": "alice",
+        "target": "devs"
+      },
+      {
+        "id": "e2",
+        "kind": "subjectOf",
+        "source": "devs",
+        "target": "ra1",
+        "label": "who"
+      },
+      {
+        "id": "e3",
+        "kind": "grants",
+        "source": "ra1",
+        "target": "contrib",
+        "label": "what"
+      },
+      {
+        "id": "e4",
+        "kind": "scopedTo",
+        "source": "ra1",
+        "target": "rg",
+        "label": "where"
+      },
+      {
+        "id": "e5",
+        "kind": "subjectOf",
+        "source": "auditors",
+        "target": "ra2",
+        "label": "who"
+      },
+      {
+        "id": "e6",
+        "kind": "grants",
+        "source": "ra2",
+        "target": "reader",
+        "label": "what"
+      },
+      {
+        "id": "e7",
+        "kind": "scopedTo",
+        "source": "ra2",
+        "target": "mg",
+        "label": "where"
+      },
+      {
+        "id": "e8",
+        "kind": "childOf",
+        "source": "sub",
+        "target": "mg",
+        "label": "inherits"
+      },
+      {
+        "id": "e9",
+        "kind": "childOf",
+        "source": "rg",
+        "target": "sub",
+        "label": "inherits"
+      },
+      {
+        "id": "e10",
+        "kind": "childOf",
+        "source": "st",
+        "target": "rg",
+        "label": "inherits"
+      }
+    ]
+  }
+}

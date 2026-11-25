@@ -1,0 +1,146 @@
+{
+  "id": "aws-cognito",
+  "provider": "aws",
+  "basics": true,
+  "order": 3,
+  "title": "Cognito: user pools and identity pools",
+  "summary": "Cognito handles your application's own users, such as customers, not your workforce. A user pool is the user directory and sign-in service that issues tokens. An identity pool exchanges those tokens for temporary AWS credentials, through IAM roles.",
+  "notes": [
+    "User pool: sign-up, sign-in, MFA and federation with social or SAML/OIDC providers. It issues OIDC tokens (ID and access tokens) to your app.",
+    "Many apps only need a user pool: API Gateway or your API validates the access token, and AWS credentials never reach the browser.",
+    "Identity pool: when the app itself must call AWS (e.g. upload to S3), it trades the token for short-lived credentials of an IAM role. An optional guest role covers unauthenticated users.",
+    "Scope the authenticated role per user with policy variables, e.g. limiting S3 access to a prefix named after ${cognito-identity.amazonaws.com:sub}.",
+    "For workforce access to AWS accounts, use IAM Identity Center instead."
+  ],
+  "docs": [
+    {
+      "title": "What is Amazon Cognito?",
+      "url": "https://docs.aws.amazon.com/cognito/latest/developerguide/what-is-amazon-cognito.html"
+    },
+    {
+      "title": "User pools",
+      "url": "https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools.html"
+    },
+    {
+      "title": "Identity pools",
+      "url": "https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-identity.html"
+    },
+    {
+      "title": "API Gateway: Cognito user pool authorizer",
+      "url": "https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-integrate-with-cognito.html"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "customer",
+        "kind": "user",
+        "label": "App user (customer)"
+      },
+      {
+        "id": "social",
+        "kind": "externalIssuer",
+        "label": "Social or SAML IdP (optional)"
+      },
+      {
+        "id": "app",
+        "kind": "workload",
+        "label": "Web / mobile app"
+      },
+      {
+        "id": "up",
+        "kind": "identityProvider",
+        "label": "Cognito user pool"
+      },
+      {
+        "id": "api",
+        "kind": "workload",
+        "label": "API Gateway + backend"
+      },
+      {
+        "id": "ip",
+        "kind": "identityProvider",
+        "label": "Cognito identity pool"
+      },
+      {
+        "id": "auth",
+        "kind": "iamRole",
+        "label": "IAM role: authenticated"
+      },
+      {
+        "id": "guest",
+        "kind": "iamRole",
+        "label": "IAM role: guest (optional)"
+      },
+      {
+        "id": "bucket",
+        "kind": "scope",
+        "label": "S3: uploads/${sub}/*",
+        "properties": {
+          "type": "s3 prefix"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "uses",
+        "source": "customer",
+        "target": "app",
+        "label": "signs in"
+      },
+      {
+        "id": "e2",
+        "kind": "federatesWith",
+        "source": "social",
+        "target": "up",
+        "label": "federated sign-in"
+      },
+      {
+        "id": "e3",
+        "kind": "uses",
+        "source": "app",
+        "target": "up",
+        "label": "get tokens"
+      },
+      {
+        "id": "e4",
+        "kind": "federatesWith",
+        "source": "up",
+        "target": "api",
+        "label": "access token checked"
+      },
+      {
+        "id": "e5",
+        "kind": "federatesWith",
+        "source": "up",
+        "target": "ip",
+        "label": "token exchange"
+      },
+      {
+        "id": "e6",
+        "kind": "federatesWith",
+        "source": "ip",
+        "target": "auth",
+        "label": "AssumeRoleWithWebIdentity"
+      },
+      {
+        "id": "e7",
+        "kind": "federatesWith",
+        "source": "ip",
+        "target": "guest",
+        "label": "unauthenticated"
+      },
+      {
+        "id": "e8",
+        "kind": "hasRoleAssignment",
+        "source": "auth",
+        "target": "bucket",
+        "label": "s3:PutObject",
+        "properties": {
+          "role": "s3:PutObject on own prefix"
+        }
+      }
+    ]
+  }
+}

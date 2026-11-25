@@ -11,15 +11,15 @@
   "docs": [
     {
       "title": "About Workload Identity Federation for GKE",
-      "url": "https://cloud.google.com/kubernetes-engine/docs/concepts/workload-identity"
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/concepts/workload-identity"
     },
     {
       "title": "Authenticate to Google Cloud APIs from GKE workloads",
-      "url": "https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity"
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/how-to/workload-identity"
     },
     {
       "title": "IAM principal identifiers",
-      "url": "https://cloud.google.com/iam/docs/principal-identifiers"
+      "url": "https://docs.cloud.google.com/iam/docs/principal-identifiers"
     }
   ],
   "graph": {

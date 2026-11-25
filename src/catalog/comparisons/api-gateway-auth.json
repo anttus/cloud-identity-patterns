@@ -1,0 +1,73 @@
+{
+  "id": "api-gateway-auth",
+  "title": "API gateway authentication: APIM vs API Gateway vs Istio",
+  "topic": "APIs",
+  "summary": "Every gateway handles identity twice: it checks the caller's token, then calls the backend as its own identity. The platforms differ in where the check is configured and what the backend learns about the caller.",
+  "patterns": [
+    "azure-apim-entra-auth",
+    "aws-apigw-authorizers",
+    "gcp-api-gateway",
+    "k8s-istio-ingress-auth"
+  ],
+  "dimensions": [
+    {
+      "label": "Caller's token checked by",
+      "values": [
+        "validate-azure-ad-token or validate-jwt policy",
+        "JWT authorizer (HTTP API); Cognito or Lambda authorizer (REST API)",
+        "securityDefinitions in the OpenAPI spec",
+        "RequestAuthentication + AuthorizationPolicy"
+      ]
+    },
+    {
+      "label": "Service callers without a user",
+      "values": [
+        "Entra token for a managed identity or app",
+        "IAM authorization with SigV4",
+        "Google-signed token from a service account",
+        "mTLS SPIFFE identity, matched by principals"
+      ]
+    },
+    {
+      "label": "Gateway → backend as",
+      "values": [
+        "APIM's managed identity",
+        "Lambda resource policy for apigateway.amazonaws.com",
+        "The API config's backend service account",
+        "The gateway's Kubernetes service account, over mTLS"
+      ]
+    },
+    {
+      "label": "Backend learns the caller from",
+      "values": [
+        "Whatever the policies forward: the token, claims in headers, or nothing",
+        "Checked claims in the request context",
+        "The original token in X-Forwarded-Authorization",
+        "Nothing by default; forwardOriginalToken or outputPayloadToHeader"
+      ]
+    },
+    {
+      "label": "API keys",
+      "values": [
+        "Subscription keys: quotas and analytics",
+        "Usage-plan keys: throttling and quotas",
+        "API keys: identify the project",
+        "None built in"
+      ]
+    },
+    {
+      "label": "Keeping callers from skipping it",
+      "values": [
+        "Private endpoint or access restrictions, plus an app role for APIM",
+        "SourceArn on the resource policy; private integration for VPC backends",
+        "run.invoker for the gateway's service account only",
+        "PeerAuthentication STRICT + allow only the gateway principal"
+      ]
+    }
+  ],
+  "notes": [
+    "In all four, the gateway proves who it is to the backend with its own identity. Forwarding the caller's token is optional, and only safe when the backend checks the token's audience as well.",
+    "None of the platforms treat API keys as authentication. Use them for metering, next to a real token.",
+    "A gateway only protects what can't be reached without it. Lock each backend to the gateway's identity or network."
+  ]
+}

@@ -28,6 +28,28 @@ export const findCatalogErrors = ({ patterns, comparisons }: Catalog): string[] 
   return errors;
 };
 
+/** Comparisons with this topic are shown with the basics patterns, not under Comparisons. */
+export const BASICS_TOPIC = "Basics";
+
+/** Comparison topics in sidebar order: these first, the rest alphabetically. */
+const TOPIC_ORDER = [BASICS_TOPIC, "Kubernetes"];
+
+export const compareTopics = (a: string, b: string): number => {
+  const rank = (t: string) => {
+    const i = TOPIC_ORDER.indexOf(t);
+    return i < 0 ? TOPIC_ORDER.length : i;
+  };
+  return rank(a) - rank(b) || a.localeCompare(b);
+};
+
+/**
+ * Sort comparator: overview ("basics") patterns first, then by `order` if set.
+ * Patterns without `order` keep their existing relative order (Array.sort is stable).
+ */
+export const basicsFirst = (a: Pattern, b: Pattern): number =>
+  Number(b.basics) - Number(a.basics) ||
+  (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER);
+
 export const providerLabels: Record<Provider, string> = {
   azure: "Azure",
   aws: "AWS",
@@ -35,3 +57,30 @@ export const providerLabels: Record<Provider, string> = {
   kubernetes: "Kubernetes",
   generic: "General",
 };
+
+/** Lower-case and strip accents, so "entra" matches "Entra" and "e" matches "é". */
+const fold = (s: string): string =>
+  s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+
+/**
+ * True when every word of `query` appears somewhere in `text` (in any order).
+ * An empty or blank query matches everything.
+ */
+export const matchesQuery = (text: string, query: string): boolean => {
+  const haystack = fold(text);
+  return fold(query)
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((word) => haystack.includes(word));
+};
+
+/** What the sidebar search looks at for a pattern: title, summary and platform. */
+export const patternSearchText = (p: Pattern): string =>
+  [p.title, p.summary, providerLabels[p.provider], p.provider].join(" ");
+
+/** What the sidebar search looks at for a comparison: title, summary and topic. */
+export const comparisonSearchText = (c: Comparison): string =>
+  [c.title, c.summary, c.topic].join(" ");

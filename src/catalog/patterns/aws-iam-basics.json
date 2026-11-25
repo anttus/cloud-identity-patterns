@@ -1,0 +1,174 @@
+{
+  "id": "aws-iam-basics",
+  "provider": "aws",
+  "basics": true,
+  "order": 1,
+  "title": "IAM: users, groups, roles and policies",
+  "summary": "Inside one AWS account, IAM users have long-term credentials, groups bundle policies for users, and roles are identities that people or services assume to get short-lived credentials. Policies, attached to any of them, say what is allowed.",
+  "notes": [
+    "IAM users carry long-term credentials (password, access keys). For people, prefer IAM Identity Center; for workloads, prefer roles. Keep IAM users for the rare cases that need them.",
+    "A group is only a container for policies. It can't be named in a policy as a principal and can't assume a role.",
+    "A role has two policies of different kinds: the trust policy says who may assume it, and permission policies say what it may then do. Credentials from sts:AssumeRole expire.",
+    "Everything is denied by default. An explicit Deny always beats an Allow, and organisation SCPs and permission boundaries can cap what any policy grants.",
+    "The account root user can do everything and can't be limited by IAM policies. Protect it with MFA, give it no access keys, and use it only for the few tasks that require it."
+  ],
+  "docs": [
+    {
+      "title": "IAM identities: users, groups and roles",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id.html"
+    },
+    {
+      "title": "IAM roles",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html"
+    },
+    {
+      "title": "Policies and permissions in IAM",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html"
+    },
+    {
+      "title": "Policy evaluation logic",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html"
+    },
+    {
+      "title": "Security best practices in IAM",
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "alice",
+        "kind": "user",
+        "label": "IAM user: alice"
+      },
+      {
+        "id": "ci",
+        "kind": "user",
+        "label": "IAM user: legacy-ci"
+      },
+      {
+        "id": "key",
+        "kind": "credential",
+        "label": "Access key (long-term)"
+      },
+      {
+        "id": "devs",
+        "kind": "group",
+        "label": "IAM group: developers"
+      },
+      {
+        "id": "devpol",
+        "kind": "roleDefinition",
+        "label": "Policy: DeveloperReadOnly",
+        "properties": {
+          "type": "customer managed"
+        }
+      },
+      {
+        "id": "ec2",
+        "kind": "workload",
+        "label": "EC2 instance: app-01"
+      },
+      {
+        "id": "role",
+        "kind": "iamRole",
+        "label": "IAM role: app-deployer",
+        "properties": {
+          "trustPolicy": "account 111122223333, ec2.amazonaws.com"
+        }
+      },
+      {
+        "id": "deploypol",
+        "kind": "roleDefinition",
+        "label": "Policy: deploy-artifacts",
+        "properties": {
+          "allow": "s3:GetObject, s3:PutObject"
+        }
+      },
+      {
+        "id": "bucket",
+        "kind": "scope",
+        "label": "S3 bucket: app-artifacts",
+        "properties": {
+          "type": "s3 bucket"
+        }
+      },
+      {
+        "id": "account",
+        "kind": "scope",
+        "label": "AWS account 111122223333",
+        "properties": {
+          "type": "account"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "memberOf",
+        "source": "alice",
+        "target": "devs"
+      },
+      {
+        "id": "e2",
+        "kind": "grants",
+        "source": "devs",
+        "target": "devpol",
+        "label": "attached policy"
+      },
+      {
+        "id": "e3",
+        "kind": "attachedTo",
+        "source": "key",
+        "target": "ci"
+      },
+      {
+        "id": "e4",
+        "kind": "canAssume",
+        "source": "alice",
+        "target": "role",
+        "label": "sts:AssumeRole"
+      },
+      {
+        "id": "e5",
+        "kind": "canAssume",
+        "source": "ci",
+        "target": "role",
+        "label": "sts:AssumeRole"
+      },
+      {
+        "id": "e6",
+        "kind": "runsAs",
+        "source": "ec2",
+        "target": "role",
+        "label": "instance profile"
+      },
+      {
+        "id": "e7",
+        "kind": "grants",
+        "source": "role",
+        "target": "deploypol",
+        "label": "permission policy"
+      },
+      {
+        "id": "e8",
+        "kind": "scopedTo",
+        "source": "deploypol",
+        "target": "bucket",
+        "label": "Resource"
+      },
+      {
+        "id": "e9",
+        "kind": "childOf",
+        "source": "role",
+        "target": "account"
+      },
+      {
+        "id": "e10",
+        "kind": "childOf",
+        "source": "bucket",
+        "target": "account"
+      }
+    ]
+  }
+}

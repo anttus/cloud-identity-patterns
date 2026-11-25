@@ -1,0 +1,117 @@
+{
+  "id": "warn-apim-subscription-key-only",
+  "type": "warning",
+  "provider": "azure",
+  "fixedBy": "azure-apim-entra-auth",
+  "title": "API key as the only authentication",
+  "summary": "Partners call the API with nothing but an API Management subscription key. The key says which subscription is calling, not who, and anyone who gets hold of it can call the API until someone regenerates it.",
+  "notes": [
+    "A subscription key is a long-lived shared secret. It ends up in mobile apps, browser code, config files and support tickets, and it never expires by itself.",
+    "The key carries no user, no roles and no scopes, so the API can't make per-user decisions. Every caller with the key gets the same access.",
+    "Fix: require an Entra ID token with validate-azure-ad-token, checking the audience and app roles. Keep the subscription key if you want it for quotas and analytics, but alongside the token.",
+    "The same mistake exists on other clouds: AWS usage-plan keys and Google Cloud API keys are for metering and identifying the project, and neither provider recommends them for authorization."
+  ],
+  "docs": [
+    {
+      "title": "Subscriptions in Azure API Management",
+      "url": "https://learn.microsoft.com/azure/api-management/api-management-subscriptions"
+    },
+    {
+      "title": "Protect an API in API Management with OAuth 2.0 and Entra ID",
+      "url": "https://learn.microsoft.com/azure/api-management/api-management-howto-protect-backend-with-aad"
+    },
+    {
+      "title": "Authentication and authorization to APIs in API Management",
+      "url": "https://learn.microsoft.com/azure/api-management/authentication-authorization-overview"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "client",
+        "kind": "workload",
+        "label": "Partner mobile app"
+      },
+      {
+        "id": "key",
+        "kind": "credential",
+        "label": "Ocp-Apim-Subscription-Key",
+        "properties": {
+          "sent in": "request header",
+          "expires": "never (until regenerated)"
+        },
+        "warning": "The only proof of identity: a shared, long-lived secret shipped inside the app, with no user or roles."
+      },
+      {
+        "id": "subscription",
+        "kind": "roleBinding",
+        "label": "Subscription: partner-a",
+        "properties": {
+          "scope": "product: orders"
+        }
+      },
+      {
+        "id": "apim",
+        "kind": "workload",
+        "label": "APIM: apim-prod",
+        "properties": {
+          "inbound policy": "none (subscription required only)"
+        },
+        "warning": "No token validation: anyone with the key is treated as partner-a."
+      },
+      {
+        "id": "apim-mi",
+        "kind": "systemAssignedIdentity",
+        "label": "apim-prod (MI)"
+      },
+      {
+        "id": "backend",
+        "kind": "scope",
+        "label": "app-orders-backend",
+        "properties": {
+          "type": "Microsoft.Web/sites"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "uses",
+        "source": "client",
+        "target": "key",
+        "label": "embedded in app"
+      },
+      {
+        "id": "e2",
+        "kind": "instanceOf",
+        "source": "key",
+        "target": "subscription",
+        "label": "key of"
+      },
+      {
+        "id": "e3",
+        "kind": "scopedTo",
+        "source": "subscription",
+        "target": "apim",
+        "label": "opens the API"
+      },
+      {
+        "id": "e4",
+        "kind": "runsAs",
+        "source": "apim",
+        "target": "apim-mi",
+        "label": "calls backend as"
+      },
+      {
+        "id": "e5",
+        "kind": "hasRoleAssignment",
+        "source": "apim-mi",
+        "target": "backend",
+        "label": "app role Gateway.Call",
+        "properties": {
+          "role": "Gateway.Call"
+        }
+      }
+    ]
+  }
+}

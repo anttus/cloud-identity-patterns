@@ -11,7 +11,7 @@
   "docs": [
     {
       "title": "Workload Identity Federation with deployment pipelines",
-      "url": "https://cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines"
+      "url": "https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines"
     },
     {
       "title": "google-github-actions/auth",
@@ -23,7 +23,7 @@
     },
     {
       "title": "Workload Identity Federation overview",
-      "url": "https://cloud.google.com/iam/docs/workload-identity-federation"
+      "url": "https://docs.cloud.google.com/iam/docs/workload-identity-federation"
     }
   ],
   "graph": {

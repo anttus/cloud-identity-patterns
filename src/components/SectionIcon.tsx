@@ -5,7 +5,17 @@ import type { ReactNode } from "react";
  * platform's colour rather than official logos: inline SVG keeps the strict CSP
  * (no external images) and works in light and dark mode.
  */
-export type IconName = "kubernetes" | "azure" | "aws" | "gcp" | "generic" | "warning" | "cicd";
+export type IconName =
+  | "kubernetes"
+  | "azure"
+  | "aws"
+  | "gcp"
+  | "generic"
+  | "warning"
+  | "cicd"
+  | "basics"
+  | "compare"
+  | "api";
 
 // Seven spokes for the Kubernetes helm wheel, computed once.
 const spokes = Array.from({ length: 7 }, (_, i) => {
@@ -18,6 +28,45 @@ const heptagon = Array.from({ length: 7 }, (_, i) => {
 }).join(" ");
 
 const glyphs: Record<IconName, { color: string; body: ReactNode }> = {
+  basics: {
+    color: "var(--accent)",
+    body: (
+      <path
+        d="M8 4.2C6.6 3 4.6 2.6 1.8 2.8v9.6c2.8-.2 4.8.2 6.2 1.4 1.4-1.2 3.4-1.6 6.2-1.4V2.8C11.4 2.6 9.4 3 8 4.2zm0 0v9.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    ),
+  },
+  compare: {
+    color: "var(--fg-muted)",
+    body: (
+      <>
+        <rect
+          x="1.5"
+          y="2.5"
+          width="5.5"
+          height="11"
+          rx="1.2"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+        />
+        <rect
+          x="9"
+          y="2.5"
+          width="5.5"
+          height="11"
+          rx="1.2"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+        />
+      </>
+    ),
+  },
   kubernetes: {
     color: "#326ce5",
     body: (
@@ -98,6 +147,18 @@ const glyphs: Record<IconName, { color: string; body: ReactNode }> = {
       </>
     ),
   },
+  api: {
+    color: "#0d9488",
+    body: (
+      <path
+        d="M5.5 2C3.8 2 3.6 3 3.6 4.4v1.4c0 1.2-.6 2-1.8 2.2 1.2.2 1.8 1 1.8 2.2v1.4c0 1.4.2 2.4 1.9 2.4M10.5 2c1.7 0 1.9 1 1.9 2.4v1.4c0 1.2.6 2 1.8 2.2-1.2.2-1.8 1-1.8 2.2v1.4c0 1.4-.2 2.4-1.9 2.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    ),
+  },
   cicd: {
     color: "#8b5cf6",
     body: (
@@ -122,7 +183,15 @@ const glyphs: Record<IconName, { color: string; body: ReactNode }> = {
 
 /** Sidebar topics → glyph. Unknown topics get the neutral shield. */
 export const topicIcon = (topic: string): IconName =>
-  topic === "Kubernetes" ? "kubernetes" : topic === "CI/CD" ? "cicd" : "generic";
+  topic === "Kubernetes"
+    ? "kubernetes"
+    : topic === "CI/CD"
+      ? "cicd"
+      : topic === "Basics"
+        ? "basics"
+        : topic === "APIs"
+          ? "api"
+          : "generic";
 
 export const SectionIcon = ({ name }: { name: IconName }) => {
   const { color, body } = glyphs[name];

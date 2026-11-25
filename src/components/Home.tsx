@@ -1,4 +1,4 @@
-import { providerLabels } from "../domain/catalog";
+import { BASICS_TOPIC, basicsFirst, compareTopics, providerLabels } from "../domain/catalog";
 import type { View } from "../domain/routing";
 import type { Comparison, Pattern, Provider } from "../domain/schema";
 import { edgeVisuals, WARNING_COLOR } from "../domain/visuals";
@@ -49,19 +49,26 @@ export const Home = ({ patterns, comparisons, onNavigate }: Props) => {
   const good = patterns.filter((p) => p.type === "pattern");
   const warnings = patterns.filter((p) => p.type === "warning");
   const platforms = providerOrder
-    .map((provider) => ({ provider, items: good.filter((p) => p.provider === provider) }))
+    .map((provider) => ({
+      provider,
+      items: good.filter((p) => p.provider === provider && !p.basics),
+    }))
     .filter((g) => g.items.length > 0);
   const openPattern = (id: string) => onNavigate({ type: "pattern", id });
-  // Same order as the sidebar: Kubernetes comparisons first, then the other topics.
-  const orderedComparisons = [...comparisons].sort((x, y) =>
-    x.topic === y.topic
-      ? 0
-      : x.topic === "Kubernetes"
-        ? -1
-        : y.topic === "Kubernetes"
-          ? 1
-          : x.topic.localeCompare(y.topic),
-  );
+  // Same order as the sidebar.
+  const orderedComparisons = comparisons
+    .filter((c) => c.topic !== BASICS_TOPIC)
+    .sort((x, y) => compareTopics(x.topic, y.topic));
+  const basicsComparisons = comparisons.filter((c) => c.topic === BASICS_TOPIC);
+  // Basics as a learning path: by platform (Azure, then AWS, …), then by each pattern's order.
+  const basicsProviders: Provider[] = ["azure", "aws", "gcp", "kubernetes", "generic"];
+  const basics = good
+    .filter((p) => p.basics)
+    .sort(
+      (a, b) =>
+        basicsProviders.indexOf(a.provider) - basicsProviders.indexOf(b.provider) ||
+        basicsFirst(a, b),
+    );
 
   return (
     <div className="home">
@@ -86,6 +93,48 @@ export const Home = ({ patterns, comparisons, onNavigate }: Props) => {
           </ul>
         </div>
       </header>
+
+      {basics.length > 0 && (
+        <section aria-labelledby="home-basics">
+          <h3 id="home-basics">New here? Start with the basics</h3>
+          <p className="summary">
+            The main identity building blocks of each cloud: who can sign in, what a workload runs
+            as, and where permissions are granted.
+          </p>
+          <div className="home-grid">
+            {basics.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="home-card"
+                onClick={() => openPattern(p.id)}
+              >
+                <span className="home-card-kicker">
+                  <SectionIcon name={p.provider} />
+                  {providerLabels[p.provider]}
+                </span>
+                <span className="home-card-title">{p.title}</span>
+                <span className="home-card-text">{p.summary}</span>
+              </button>
+            ))}
+            {basicsComparisons.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className="home-card"
+                onClick={() => onNavigate({ type: "comparison", id: c.id })}
+              >
+                <span className="home-card-kicker">
+                  <SectionIcon name="compare" />
+                  Side by side
+                </span>
+                <span className="home-card-title">{c.title}</span>
+                <span className="home-card-text">{c.summary}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section aria-labelledby="home-compare">
         <h3 id="home-compare">Start with a comparison</h3>

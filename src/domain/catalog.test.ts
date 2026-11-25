@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { findCatalogErrors } from "./catalog";
+import {
+  basicsFirst,
+  compareTopics,
+  findCatalogErrors,
+  matchesQuery,
+  patternSearchText,
+} from "./catalog";
 import type { Comparison, Pattern } from "./schema";
 
 const pattern = (id: string, extra: Partial<Pattern> = {}): Pattern => ({
@@ -10,6 +16,7 @@ const pattern = (id: string, extra: Partial<Pattern> = {}): Pattern => ({
   summary: "",
   notes: [],
   docs: [],
+  basics: false,
   graph: { nodes: [], edges: [] },
   ...extra,
 });
@@ -48,5 +55,48 @@ describe("findCatalogErrors", () => {
       comparisons: [comparison("c", ["a", "zzz"])],
     });
     expect(errors).toEqual([`comparison "c" references unknown pattern "zzz"`]);
+  });
+});
+
+describe("ordering", () => {
+  it("lists Basics, then Kubernetes, then other topics alphabetically", () => {
+    expect(["CI/CD", "Zeta", "Kubernetes", "Basics"].sort(compareTopics)).toEqual([
+      "Basics",
+      "Kubernetes",
+      "CI/CD",
+      "Zeta",
+    ]);
+  });
+
+  it("puts basics patterns first and keeps the rest in order", () => {
+    const list = [pattern("a"), pattern("b", { basics: true }), pattern("c")];
+    expect(list.sort(basicsFirst).map((p) => p.id)).toEqual(["b", "a", "c"]);
+  });
+
+  it("orders basics by their order field", () => {
+    const list = [
+      pattern("x", { basics: true, order: 2 }),
+      pattern("y", { basics: true, order: 1 }),
+    ];
+    expect(list.sort(basicsFirst).map((p) => p.id)).toEqual(["y", "x"]);
+  });
+});
+
+describe("matchesQuery", () => {
+  it("matches everything when the query is blank", () => {
+    expect(matchesQuery("anything", "")).toBe(true);
+    expect(matchesQuery("anything", "   ")).toBe(true);
+  });
+  it("ignores case and accents", () => {
+    expect(matchesQuery("Entra ID", "entra")).toBe(true);
+    expect(matchesQuery("Café", "CAFE")).toBe(true);
+  });
+  it("needs every word, in any order", () => {
+    expect(matchesQuery("AKS Workload Identity", "identity aks")).toBe(true);
+    expect(matchesQuery("AKS Workload Identity", "aks eks")).toBe(false);
+  });
+  it("finds a pattern by its platform name", () => {
+    const p = pattern("gke", { provider: "gcp", title: "GKE Workload Identity" });
+    expect(matchesQuery(patternSearchText(p), "google workload")).toBe(true);
   });
 });

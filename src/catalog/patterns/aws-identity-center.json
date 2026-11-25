@@ -1,0 +1,145 @@
+{
+  "id": "aws-identity-center",
+  "provider": "aws",
+  "basics": true,
+  "order": 2,
+  "title": "IAM Identity Center: workforce access across accounts",
+  "summary": "People sign in once through IAM Identity Center, usually backed by your corporate identity provider. Permission sets define access, and account assignments give a group a permission set in specific accounts. Identity Center creates the matching IAM roles for you.",
+  "notes": [
+    "The identity source is the Identity Center directory, Active Directory, or an external IdP such as Entra ID or Okta, connected over SAML 2.0 for sign-in and SCIM for syncing users and groups.",
+    "A permission set is a template: AWS managed or customer policies, an optional permission boundary and a session length.",
+    "An account assignment is the binding: group + permission set + account. Identity Center then provisions an AWSReservedSSO_… role in that account. Don't edit those roles by hand.",
+    "People get short-lived credentials through the access portal or the CLI (aws sso login). Nobody needs an IAM user or a long-term access key.",
+    "It works across all accounts in AWS Organizations, so access is managed in one place instead of per account."
+  ],
+  "docs": [
+    {
+      "title": "What is IAM Identity Center?",
+      "url": "https://docs.aws.amazon.com/singlesignon/latest/userguide/what-is.html"
+    },
+    {
+      "title": "Permission sets",
+      "url": "https://docs.aws.amazon.com/singlesignon/latest/userguide/permissionsetsconcept.html"
+    },
+    {
+      "title": "Manage your identity source",
+      "url": "https://docs.aws.amazon.com/singlesignon/latest/userguide/manage-your-identity-source.html"
+    },
+    {
+      "title": "Automatic provisioning with SCIM",
+      "url": "https://docs.aws.amazon.com/singlesignon/latest/userguide/provision-automatically.html"
+    },
+    {
+      "title": "Configure the AWS CLI to use IAM Identity Center",
+      "url": "https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "idp",
+        "kind": "externalIssuer",
+        "label": "Corporate IdP (e.g. Entra ID)"
+      },
+      {
+        "id": "alice",
+        "kind": "user",
+        "label": "alice@example.com"
+      },
+      {
+        "id": "group",
+        "kind": "group",
+        "label": "Group: platform-admins (synced)"
+      },
+      {
+        "id": "ic",
+        "kind": "identityProvider",
+        "label": "IAM Identity Center (organization)"
+      },
+      {
+        "id": "assign",
+        "kind": "roleBinding",
+        "label": "Account assignment",
+        "description": "Who: platform-admins. What: AdministratorAccess. Where: prod account."
+      },
+      {
+        "id": "ps",
+        "kind": "roleDefinition",
+        "label": "Permission set: AdministratorAccess",
+        "properties": {
+          "session": "1 hour"
+        }
+      },
+      {
+        "id": "account",
+        "kind": "scope",
+        "label": "Account: prod (111122223333)",
+        "properties": {
+          "type": "account"
+        }
+      },
+      {
+        "id": "role",
+        "kind": "iamRole",
+        "label": "AWSReservedSSO_AdministratorAccess_…",
+        "description": "Created and managed by Identity Center."
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "memberOf",
+        "source": "alice",
+        "target": "group"
+      },
+      {
+        "id": "e2",
+        "kind": "federatesWith",
+        "source": "idp",
+        "target": "ic",
+        "label": "SAML sign-in + SCIM sync"
+      },
+      {
+        "id": "e3",
+        "kind": "subjectOf",
+        "source": "group",
+        "target": "assign",
+        "label": "who"
+      },
+      {
+        "id": "e4",
+        "kind": "grants",
+        "source": "assign",
+        "target": "ps",
+        "label": "what"
+      },
+      {
+        "id": "e5",
+        "kind": "scopedTo",
+        "source": "assign",
+        "target": "account",
+        "label": "where"
+      },
+      {
+        "id": "e6",
+        "kind": "instanceOf",
+        "source": "role",
+        "target": "ps",
+        "label": "provisioned from"
+      },
+      {
+        "id": "e7",
+        "kind": "childOf",
+        "source": "role",
+        "target": "account"
+      },
+      {
+        "id": "e8",
+        "kind": "canAssume",
+        "source": "alice",
+        "target": "role",
+        "label": "portal / aws sso login"
+      }
+    ]
+  }
+}

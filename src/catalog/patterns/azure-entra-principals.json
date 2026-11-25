@@ -1,0 +1,180 @@
+{
+  "id": "azure-entra-principals",
+  "provider": "azure",
+  "basics": true,
+  "order": 1,
+  "title": "Entra ID: users, groups, apps and managed identities",
+  "summary": "Microsoft Entra ID is the identity directory behind Azure. Everything that can sign in is a principal in one Entra tenant: people as users, apps as service principals, Azure resources as managed identities. Subscriptions trust that tenant.",
+  "notes": [
+    "Users are members (your organisation) or guests (B2B: people from another tenant, who keep signing in with their own account).",
+    "Groups collect users and service principals, so access can be granted once to the group instead of to each person.",
+    "Workloads sign in as service principals. An app registration defines an app; its service principal is the app's identity inside a tenant (see the app registration pattern).",
+    "Managed identities are service principals whose credentials Azure creates and rotates for you. System-assigned ones live and die with one resource; user-assigned ones are standalone and can be shared.",
+    "Each subscription trusts exactly one tenant. Two separate permission systems sit on top: Entra roles control the directory itself (users, apps), and Azure RBAC controls Azure resources."
+  ],
+  "docs": [
+    {
+      "title": "What is Microsoft Entra ID?",
+      "url": "https://learn.microsoft.com/entra/fundamentals/what-is-entra"
+    },
+    {
+      "title": "How subscriptions are associated with a tenant",
+      "url": "https://learn.microsoft.com/entra/fundamentals/how-subscriptions-associated-directory"
+    },
+    {
+      "title": "B2B collaboration (guest users)",
+      "url": "https://learn.microsoft.com/entra/external-id/what-is-b2b"
+    },
+    {
+      "title": "Application and service principal objects",
+      "url": "https://learn.microsoft.com/entra/identity-platform/app-objects-and-service-principals"
+    },
+    {
+      "title": "Managed identities overview",
+      "url": "https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "alice",
+        "kind": "user",
+        "label": "alice@contoso.com (member)"
+      },
+      {
+        "id": "guest",
+        "kind": "user",
+        "label": "bob@partner.com (guest)",
+        "properties": {
+          "userType": "Guest",
+          "signsInAt": "partner tenant"
+        }
+      },
+      {
+        "id": "group",
+        "kind": "group",
+        "label": "grp-platform-engineers"
+      },
+      {
+        "id": "app",
+        "kind": "appRegistration",
+        "label": "App registration: orders-api"
+      },
+      {
+        "id": "sp",
+        "kind": "servicePrincipal",
+        "label": "Service principal: orders-api"
+      },
+      {
+        "id": "vm",
+        "kind": "workload",
+        "label": "vm-batch-01"
+      },
+      {
+        "id": "sami",
+        "kind": "systemAssignedIdentity",
+        "label": "vm-batch-01 (system-assigned)"
+      },
+      {
+        "id": "uami",
+        "kind": "userAssignedIdentity",
+        "label": "id-orders-api (user-assigned)"
+      },
+      {
+        "id": "tenant",
+        "kind": "scope",
+        "label": "Entra tenant: contoso",
+        "properties": {
+          "type": "tenant"
+        }
+      },
+      {
+        "id": "sub",
+        "kind": "scope",
+        "label": "Subscription: prod",
+        "properties": {
+          "type": "subscription"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "memberOf",
+        "source": "alice",
+        "target": "group"
+      },
+      {
+        "id": "e2",
+        "kind": "memberOf",
+        "source": "guest",
+        "target": "group"
+      },
+      {
+        "id": "e3",
+        "kind": "instanceOf",
+        "source": "sp",
+        "target": "app",
+        "label": "identity of"
+      },
+      {
+        "id": "e4",
+        "kind": "attachedTo",
+        "source": "sami",
+        "target": "vm",
+        "label": "lifecycle tied to"
+      },
+      {
+        "id": "e5",
+        "kind": "childOf",
+        "source": "group",
+        "target": "tenant"
+      },
+      {
+        "id": "e6",
+        "kind": "childOf",
+        "source": "app",
+        "target": "tenant"
+      },
+      {
+        "id": "e7",
+        "kind": "childOf",
+        "source": "sami",
+        "target": "tenant"
+      },
+      {
+        "id": "e8",
+        "kind": "childOf",
+        "source": "uami",
+        "target": "tenant"
+      },
+      {
+        "id": "e9",
+        "kind": "hasRoleAssignment",
+        "source": "group",
+        "target": "sub",
+        "label": "Reader",
+        "properties": {
+          "role": "Reader"
+        }
+      },
+      {
+        "id": "e10",
+        "kind": "hasRoleAssignment",
+        "source": "uami",
+        "target": "sub",
+        "label": "Storage Blob Data Reader",
+        "properties": {
+          "role": "Storage Blob Data Reader"
+        }
+      },
+      {
+        "id": "e11",
+        "kind": "childOf",
+        "source": "sub",
+        "target": "tenant",
+        "label": "trusts"
+      }
+    ]
+  }
+}

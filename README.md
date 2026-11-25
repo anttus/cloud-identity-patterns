@@ -4,7 +4,7 @@
 
 <h1 align="center">Cloud Identity Patterns</h1>
 
-Interactive diagrams of cloud identity patterns across Azure, AWS, Google Cloud and Kubernetes: workload identity federation, Kubernetes workload identity, cross-account roles, RBAC, PIM, etc. It includes side-by-side comparisons and anti-patterns.
+Interactive diagrams of cloud identity patterns across Azure, AWS, Google Cloud and Kubernetes: workload identity federation, Kubernetes workload identity, cross-account roles, API gateway authentication, RBAC, PIM, etc. It includes side-by-side comparisons and anti-patterns.
 
 Static single-page app with no backend and no secrets. All content is data files.
 
@@ -45,6 +45,7 @@ src/
 | Type | File | Shown as |
 |---|---|---|
 | Pattern | `catalog/patterns/*.json`, `"type": "pattern"` (default) | Diagram, grouped by `provider` in the sidebar |
+| Basics pattern | `catalog/patterns/*.json`, `"basics": true` | High-level overview of a platform's identity building blocks; listed first in its sidebar group with a "Basics" badge, and on the home page |
 | Anti-pattern | `catalog/patterns/*.json`, `"type": "warning"` | Warning banner; risky nodes/edges carry a `warning` text and render in red; optional `fixedBy` links to the safe pattern |
 | Comparison | `catalog/comparisons/*.json` | 2–4 patterns as side-by-side columns plus a dimension table, grouped in the sidebar by `topic` (e.g. Kubernetes, CI/CD) |
 

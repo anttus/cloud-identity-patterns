@@ -1,0 +1,62 @@
+{
+  "id": "basics-building-blocks",
+  "title": "Identity building blocks: Azure vs AWS",
+  "topic": "Basics",
+  "summary": "Both clouds have people, groups, workload identities and permissions, but they're organised differently. Azure keeps every identity in one Entra tenant shared by all subscriptions. AWS keeps identities inside each account and connects accounts through roles.",
+  "patterns": ["azure-entra-principals", "aws-iam-basics"],
+  "dimensions": [
+    {
+      "label": "Identity directory",
+      "values": [
+        "One Entra tenant, trusted by many subscriptions",
+        "IAM per account (Identity Center adds an organisation-wide one)"
+      ]
+    },
+    {
+      "label": "People",
+      "values": [
+        "Entra users (members and B2B guests)",
+        "IAM users, or better, Identity Center users"
+      ]
+    },
+    {
+      "label": "Groups",
+      "values": [
+        "Entra groups: can be assigned roles directly",
+        "IAM groups: only hold policies, can't be a principal"
+      ]
+    },
+    {
+      "label": "Workload identity",
+      "values": [
+        "Managed identity or service principal",
+        "IAM role (instance profile, task role, IRSA…)"
+      ]
+    },
+    {
+      "label": "Workload credentials",
+      "values": [
+        "Managed by Azure, or federated credentials",
+        "Short-lived STS credentials from assuming a role"
+      ]
+    },
+    {
+      "label": "Where permissions are defined",
+      "values": [
+        "Role assignment: principal + role + scope",
+        "Policy attached to the identity, or on the resource"
+      ]
+    },
+    {
+      "label": "Default and deny",
+      "values": [
+        "Union of assignments; deny only from managed features",
+        "Default deny; an explicit Deny always wins"
+      ]
+    }
+  ],
+  "notes": [
+    "Azure's 'who can do what where' lives in the role assignment. AWS's lives in policy documents, which can sit on the identity or on the resource itself.",
+    "In both, the safest workload identity is one with no stored secret: a managed identity in Azure, a role in AWS."
+  ]
+}

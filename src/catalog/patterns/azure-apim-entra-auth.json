@@ -1,0 +1,145 @@
+{
+  "id": "azure-apim-entra-auth",
+  "provider": "azure",
+  "title": "API Management with Entra ID",
+  "summary": "A client gets an Entra ID token for the API's app registration, and API Management checks it before forwarding the request. APIM then calls the backend as its own managed identity, so the backend only has to trust APIM.",
+  "notes": [
+    "The client requests a token whose audience is the API's app registration. The validate-azure-ad-token policy checks the tenant, the audience and any required roles or scopes before the request reaches a backend. For tokens from other issuers, use validate-jwt instead.",
+    "Subscription keys identify the calling app for quotas and analytics. They don't say which user is calling, so use them alongside a token, not instead of one.",
+    "For the backend call, the authentication-managed-identity policy gets a token for the backend's app registration as APIM's own identity. The backend then sees APIM as the caller, not the original user.",
+    "If the backend needs to know the user, forward the original token only when the backend validates its audience too. Otherwise pass the checked claims in headers, or use the on-behalf-of flow.",
+    "Make APIM the only way in: put the backend behind a private endpoint or access restrictions, and have it require the app role you assigned to APIM's identity."
+  ],
+  "docs": [
+    {
+      "title": "Protect an API in API Management with OAuth 2.0 and Entra ID",
+      "url": "https://learn.microsoft.com/azure/api-management/api-management-howto-protect-backend-with-aad"
+    },
+    {
+      "title": "validate-azure-ad-token policy",
+      "url": "https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy"
+    },
+    {
+      "title": "authentication-managed-identity policy",
+      "url": "https://learn.microsoft.com/azure/api-management/authentication-managed-identity-policy"
+    },
+    {
+      "title": "Use managed identities in API Management",
+      "url": "https://learn.microsoft.com/azure/api-management/api-management-howto-use-managed-service-identity"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "client",
+        "kind": "workload",
+        "label": "Client app",
+        "description": "A web, mobile or daemon app that calls the API through API Management."
+      },
+      {
+        "id": "entra",
+        "kind": "identityProvider",
+        "label": "Entra ID",
+        "properties": {
+          "issuer": "https://login.microsoftonline.com/<tenant>/v2.0"
+        }
+      },
+      {
+        "id": "apim",
+        "kind": "workload",
+        "label": "APIM: apim-prod",
+        "properties": {
+          "inbound policy": "validate-azure-ad-token",
+          "backend policy": "authentication-managed-identity"
+        }
+      },
+      {
+        "id": "api-app",
+        "kind": "appRegistration",
+        "label": "orders-api",
+        "description": "The API's app registration. Its Application ID URI is the audience the token must carry.",
+        "properties": {
+          "audience": "api://orders-api",
+          "app roles": "Orders.Read, Orders.Write"
+        }
+      },
+      {
+        "id": "apim-mi",
+        "kind": "systemAssignedIdentity",
+        "label": "apim-prod (MI)"
+      },
+      {
+        "id": "backend-app",
+        "kind": "appRegistration",
+        "label": "orders-backend",
+        "description": "The backend's app registration. Only callers with its Gateway.Call app role are accepted.",
+        "properties": {
+          "app role": "Gateway.Call"
+        }
+      },
+      {
+        "id": "backend",
+        "kind": "scope",
+        "label": "app-orders-backend",
+        "properties": {
+          "type": "Microsoft.Web/sites",
+          "network": "private endpoint"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "uses",
+        "source": "client",
+        "target": "entra",
+        "label": "gets token"
+      },
+      {
+        "id": "e2",
+        "kind": "federatesWith",
+        "source": "entra",
+        "target": "apim",
+        "label": "trusted issuer"
+      },
+      {
+        "id": "e3",
+        "kind": "uses",
+        "source": "client",
+        "target": "apim",
+        "label": "Bearer token"
+      },
+      {
+        "id": "e4",
+        "kind": "uses",
+        "source": "apim",
+        "target": "api-app",
+        "label": "checks aud + roles"
+      },
+      {
+        "id": "e5",
+        "kind": "runsAs",
+        "source": "apim",
+        "target": "apim-mi",
+        "label": "calls backend as"
+      },
+      {
+        "id": "e6",
+        "kind": "hasRoleAssignment",
+        "source": "apim-mi",
+        "target": "backend-app",
+        "label": "app role Gateway.Call",
+        "properties": {
+          "role": "Gateway.Call"
+        }
+      },
+      {
+        "id": "e7",
+        "kind": "attachedTo",
+        "source": "backend-app",
+        "target": "backend",
+        "label": "protects"
+      }
+    ]
+  }
+}

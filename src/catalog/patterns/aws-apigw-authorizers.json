@@ -1,0 +1,148 @@
+{
+  "id": "aws-apigw-authorizers",
+  "provider": "aws",
+  "title": "API Gateway authorizers",
+  "summary": "Users call the API with a Cognito token that a JWT authorizer checks, and internal services sign their calls with IAM. API Gateway then invokes the backend Lambda under the function's resource-based policy.",
+  "notes": [
+    "An HTTP API's JWT authorizer checks the token's signature against the issuer's keys, its expiry, and that the audience (or client_id for Cognito access tokens) is on the allowed list. Routes can also require scopes. REST APIs do the same job with a Cognito user pool authorizer or a Lambda authorizer.",
+    "Service-to-service routes can use IAM authorization instead. The caller signs the request with SigV4, and its role needs execute-api:Invoke on the specific API, stage, method and path.",
+    "API Gateway invokes Lambda under the function's resource-based policy, which allows the apigateway.amazonaws.com principal. Add a SourceArn condition for this API, so no other API can invoke the function.",
+    "The backend receives the checked claims in the request context, not just the raw header, so it doesn't need to validate the token again.",
+    "Usage-plan API keys are for throttling and quotas. AWS says not to use them for authentication or authorization."
+  ],
+  "docs": [
+    {
+      "title": "Control access to HTTP APIs with JWT authorizers",
+      "url": "https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html"
+    },
+    {
+      "title": "Control access to HTTP APIs with IAM authorization",
+      "url": "https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-access-control-iam.html"
+    },
+    {
+      "title": "Control access to REST APIs with Cognito user pools",
+      "url": "https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-integrate-with-cognito.html"
+    },
+    {
+      "title": "Usage plans and API keys for REST APIs",
+      "url": "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-api-usage-plans.html"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "client",
+        "kind": "workload",
+        "label": "Web / mobile app"
+      },
+      {
+        "id": "cognito",
+        "kind": "identityProvider",
+        "label": "Cognito user pool",
+        "properties": {
+          "issuer": "https://cognito-idp.<region>.amazonaws.com/<pool-id>"
+        }
+      },
+      {
+        "id": "job",
+        "kind": "workload",
+        "label": "Lambda: reports-job",
+        "description": "An internal service that calls the API without a user."
+      },
+      {
+        "id": "job-role",
+        "kind": "iamRole",
+        "label": "reports-job-role"
+      },
+      {
+        "id": "invoke-policy",
+        "kind": "roleDefinition",
+        "label": "execute-api:Invoke",
+        "properties": {
+          "resource": "arn:aws:execute-api:<region>:<account>:<api-id>/prod/GET/orders"
+        }
+      },
+      {
+        "id": "apigw",
+        "kind": "workload",
+        "label": "HTTP API: orders-api",
+        "properties": {
+          "user routes": "JWT authorizer (issuer, audience, scopes)",
+          "service routes": "AWS_IAM"
+        }
+      },
+      {
+        "id": "lambda-policy",
+        "kind": "roleBinding",
+        "label": "Resource policy",
+        "properties": {
+          "principal": "apigateway.amazonaws.com",
+          "action": "lambda:InvokeFunction",
+          "condition": "aws:SourceArn = this API"
+        }
+      },
+      {
+        "id": "backend",
+        "kind": "scope",
+        "label": "Lambda: orders-handler"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "uses",
+        "source": "client",
+        "target": "cognito",
+        "label": "signs in"
+      },
+      {
+        "id": "e2",
+        "kind": "federatesWith",
+        "source": "cognito",
+        "target": "apigw",
+        "label": "JWT authorizer"
+      },
+      {
+        "id": "e3",
+        "kind": "uses",
+        "source": "client",
+        "target": "apigw",
+        "label": "Bearer token"
+      },
+      {
+        "id": "e4",
+        "kind": "runsAs",
+        "source": "job",
+        "target": "job-role",
+        "label": "execution role"
+      },
+      {
+        "id": "e5",
+        "kind": "grants",
+        "source": "job-role",
+        "target": "invoke-policy"
+      },
+      {
+        "id": "e6",
+        "kind": "scopedTo",
+        "source": "invoke-policy",
+        "target": "apigw",
+        "label": "SigV4-signed call"
+      },
+      {
+        "id": "e7",
+        "kind": "subjectOf",
+        "source": "apigw",
+        "target": "lambda-policy",
+        "label": "allowed principal"
+      },
+      {
+        "id": "e8",
+        "kind": "scopedTo",
+        "source": "lambda-policy",
+        "target": "backend",
+        "label": "on the function"
+      }
+    ]
+  }
+}

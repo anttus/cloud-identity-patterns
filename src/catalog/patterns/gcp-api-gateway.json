@@ -1,0 +1,129 @@
+{
+  "id": "gcp-api-gateway",
+  "provider": "gcp",
+  "title": "API Gateway with JWT and Cloud Run",
+  "summary": "The gateway's OpenAPI spec says which token issuer and audience to accept. Valid requests go on to Cloud Run with a Google-signed ID token for the gateway's own service account, the only identity allowed to invoke the service.",
+  "notes": [
+    "The API config's OpenAPI spec lists the trusted issuer (x-google-issuer), its key set (x-google-jwks_uri) and the allowed audiences (x-google-audiences). The gateway rejects a token that doesn't match before the backend sees it.",
+    "Each API config names a backend service account. The gateway mints a Google-signed ID token for it, with the backend URL as the audience, and calls Cloud Run with that token.",
+    "Because the gateway's token takes the Authorization header, it moves the caller's original token to X-Forwarded-Authorization. A backend that reads the user from it should trust that header only from the gateway.",
+    "Grant roles/run.invoker on the one Cloud Run service to the gateway's service account only, and don't allow unauthenticated invocations. IAM is what keeps callers from going around the gateway.",
+    "API keys in API Gateway identify the calling project, not the user. For OAuth policies, token introspection and fuller API management, Google's other gateway is Apigee."
+  ],
+  "docs": [
+    {
+      "title": "Use JWTs to authenticate users (API Gateway)",
+      "url": "https://docs.cloud.google.com/api-gateway/docs/authenticating-users-jwt"
+    },
+    {
+      "title": "Authenticate between services with a service account",
+      "url": "https://docs.cloud.google.com/api-gateway/docs/authenticate-service-account"
+    },
+    {
+      "title": "Get started with API Gateway and Cloud Run",
+      "url": "https://docs.cloud.google.com/api-gateway/docs/get-started-cloud-run"
+    },
+    {
+      "title": "Apigee VerifyJWT policy",
+      "url": "https://docs.cloud.google.com/apigee/docs/api-platform/reference/policies/verify-jwt-policy"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "client",
+        "kind": "workload",
+        "label": "Client app"
+      },
+      {
+        "id": "idp",
+        "kind": "identityProvider",
+        "label": "Firebase Auth / OIDC",
+        "description": "Any issuer with a published key set: Firebase Authentication, Identity Platform, Auth0, Okta or Google-signed tokens."
+      },
+      {
+        "id": "gw",
+        "kind": "workload",
+        "label": "API Gateway: orders-gw",
+        "properties": {
+          "x-google-issuer": "https://securetoken.google.com/<project>",
+          "x-google-audiences": "<project>"
+        }
+      },
+      {
+        "id": "gw-sa",
+        "kind": "serviceAccount",
+        "label": "orders-gw@<project>.iam",
+        "description": "The backend service account named in the API config."
+      },
+      {
+        "id": "binding",
+        "kind": "roleBinding",
+        "label": "Service IAM binding"
+      },
+      {
+        "id": "invoker",
+        "kind": "roleDefinition",
+        "label": "roles/run.invoker"
+      },
+      {
+        "id": "run",
+        "kind": "scope",
+        "label": "Cloud Run: orders-api",
+        "properties": {
+          "authentication": "required (no allUsers)"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "kind": "uses",
+        "source": "client",
+        "target": "idp",
+        "label": "signs in"
+      },
+      {
+        "id": "e2",
+        "kind": "federatesWith",
+        "source": "idp",
+        "target": "gw",
+        "label": "issuer + audience"
+      },
+      {
+        "id": "e3",
+        "kind": "uses",
+        "source": "client",
+        "target": "gw",
+        "label": "Bearer JWT"
+      },
+      {
+        "id": "e4",
+        "kind": "runsAs",
+        "source": "gw",
+        "target": "gw-sa",
+        "label": "ID token for backend"
+      },
+      {
+        "id": "e5",
+        "kind": "subjectOf",
+        "source": "gw-sa",
+        "target": "binding",
+        "label": "member"
+      },
+      {
+        "id": "e6",
+        "kind": "grants",
+        "source": "binding",
+        "target": "invoker"
+      },
+      {
+        "id": "e7",
+        "kind": "scopedTo",
+        "source": "binding",
+        "target": "run",
+        "label": "this service only"
+      }
+    ]
+  }
+}
